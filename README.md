@@ -21,6 +21,7 @@ Shipway is a CLI for shipping Node.js, Python, and Ruby apps to a VPS without Do
   - [Minimal Config](#minimal-config)
   - [Full Reference](#full-reference)
   - [Host Formats](#host-formats)
+  - [remoteDir](#remotedir)
   - [Sync Formats](#sync-formats)
   - [Multi-Service](#multi-service)
 - [Commands](#commands)
@@ -106,8 +107,10 @@ A typical Node.js app deploys with 7 lines:
 # shipway.yml
 name: my-api
 host: deploy@10.0.0.5
+remoteDir: ~/my-api
 build: npm run build
-sync: ./dist → ~/my-api
+sync: ./dist
+postSync: npm install --omit=dev
 start: node server.js
 port: 3000
 ```
@@ -124,18 +127,21 @@ url: https://my-app.com         # optional — public URL (used by `shipway open
 
 host: deploy@10.0.0.5           # required — see "Host Formats" below
 
+remoteDir: ~/my-app              # optional — see "remoteDir" below
+                                 # sets default remote for sync, cd for postSync, cwd for pm2
+
 build: npm run build             # optional — local shell command (supports && ||)
 
 sync:                            # optional — rsync entries (see "Sync Formats")
   - local: ./dist
-    remote: ~/my-app
+    remote: ~/my-app             # defaults to remoteDir if omitted
     exclude: [data, logs]        # default: [.DS_Store, .git, node_modules, ._*]
     delete: true                 # default: true (--delete flag)
     checksum: false              # default: false (--checksum flag)
 
-postSync: npm install --omit=dev # optional — remote command after sync
+postSync: npm install --omit=dev # optional — auto-prefixed with `cd remoteDir &&`
 
-start: node server.js           # optional — creates pm2 restart config automatically
+start: node server.js           # optional — pm2 uses remoteDir as cwd
 
 restart:                         # optional — explicit process manager config
   method: pm2                    # pm2 | systemd | none
@@ -188,6 +194,36 @@ host:
 ```
 
 > **Key resolution order:** config `key` field → `SHIPWAY_SSH_KEY` env var → system ssh-agent
+
+### remoteDir
+
+Set `remoteDir` to avoid repeating the remote path everywhere. It affects three things:
+
+| What | Without `remoteDir` | With `remoteDir: ~/my-app` |
+|------|--------------------|-----------------------------|
+| **sync** | `sync: ./dist → ~/my-app` | `sync: ./dist` (remote defaults to `~/my-app`) |
+| **postSync** | `postSync: cd ~/my-app && npm install` | `postSync: npm install` (auto-prefixed) |
+| **pm2 cwd** | inferred from first sync entry | `~/my-app` |
+
+Before:
+
+```yaml
+sync:
+  local: ./dist
+  remote: /home/deploy/my-app
+postSync: cd /home/deploy/my-app && npm install --omit=dev
+```
+
+After:
+
+```yaml
+remoteDir: ~/my-app
+sync: ./dist
+postSync: npm install --omit=dev
+```
+
+> If a sync entry already has an explicit `remote`, it takes precedence over `remoteDir`.
+> If `postSync` already starts with `cd `, it won't be double-prefixed.
 
 ### Sync Formats
 

@@ -9,17 +9,20 @@ const DEFAULT_EXCLUDES = ['.DS_Store', '._*', '.git', 'node_modules'];
  * Applies all shorthand expansions per GEMINI.md §6.2.
  */
 export function normalize(raw: ShipwayConfig): NormalizedConfig {
-  const syncEntries = normalizeSyncEntries(raw.sync, raw.exclude);
-  const restart = normalizeRestart(raw.restart, raw.start, raw.name);
+  const remoteDir = raw.remoteDir;
+  const syncEntries = normalizeSyncEntries(raw.sync, raw.exclude, remoteDir);
+  const restart = normalizeRestart(raw.restart, raw.start, raw.name, undefined, remoteDir);
   const health = normalizeHealth(raw.health, raw.port);
+  const postSync = normalizePostSync(raw.postSync, remoteDir);
 
   const result: NormalizedConfig = {
     name: raw.name,
     url: raw.url,
     host: raw.host,
+    remoteDir,
     sync: syncEntries,
     build: raw.build,
-    postSync: raw.postSync,
+    postSync,
     start: raw.start,
     restart,
     health,
@@ -38,8 +41,9 @@ export function normalize(raw: ShipwayConfig): NormalizedConfig {
 
 /**
  * Parse a sync shorthand string: "./dist → ~/app" or "./dist -> ~/app"
+ * If only a local path (no arrow), remote defaults to remoteDir.
  */
-function parseSyncString(s: string): SyncEntry {
+function parseSyncString(s: string, remoteDir?: string): SyncEntry {
   // Support both → (unicode) and -> (ASCII)
   const separators = ['→', '->'];
   for (const sep of separators) {
@@ -50,8 +54,13 @@ function parseSyncString(s: string): SyncEntry {
       return { local, remote };
     }
   }
-  // If no arrow, treat as local-only (remote must be provided elsewhere)
-  throw new Error(`Invalid sync string "${s}": must contain → or ->`);
+
+  // No arrow — treat as local-only, remote is remoteDir
+  if (remoteDir) {
+    return { local: s, remote: remoteDir };
+  }
+
+  throw new Error(`Invalid sync string "${s}": must contain → or -> (or set remoteDir)`);
 }
 
 /**
@@ -60,6 +69,7 @@ function parseSyncString(s: string): SyncEntry {
 function normalizeSyncEntries(
   sync: ShipwayConfig['sync'],
   globalExcludes?: string[],
+  remoteDir?: string,
 ): SyncEntry[] {
   if (!sync) return [];
 
@@ -70,7 +80,7 @@ function normalizeSyncEntries(
 
   for (const item of raw) {
     if (typeof item === 'string') {
-      const parsed = parseSyncString(item);
+      const parsed = parseSyncString(item, remoteDir);
       entries.push({
         ...parsed,
         exclude: excludes,
@@ -78,8 +88,16 @@ function normalizeSyncEntries(
         checksum: false,
       });
     } else {
+      // Object form — remote defaults to remoteDir if not set
+      const remote = item.remote ?? remoteDir;
+      if (!remote) {
+        throw new Error(
+          `Sync entry is missing "remote" and no "remoteDir" is set: ${JSON.stringify(item)}`,
+        );
+      }
       entries.push({
         ...item,
+        remote,
         exclude: item.exclude ?? excludes,
         delete: item.delete ?? true,
         checksum: item.checksum ?? false,
@@ -93,18 +111,21 @@ function normalizeSyncEntries(
 /**
  * Normalize restart config.
  * If `start` is provided without `restart`, create a pm2 restart config.
+ * When remoteDir is set, it becomes the cwd for pm2.
  */
 function normalizeRestart(
   restart: ShipwayConfig['restart'],
   start: string | undefined,
   name: string,
   serviceName?: string,
-): { method: 'pm2' | 'systemd' | 'none'; name?: string; start?: string } {
+  remoteDir?: string,
+): { method: 'pm2' | 'systemd' | 'none'; name?: string; start?: string; cwd?: string } {
   if (restart) {
     return {
       method: restart.method,
       name: restart.name ?? (serviceName ? `${name}-${serviceName}` : name),
       start: restart.start ?? start,
+      cwd: remoteDir,
     };
   }
 
@@ -113,10 +134,28 @@ function normalizeRestart(
       method: 'pm2',
       name: serviceName ? `${name}-${serviceName}` : name,
       start,
+      cwd: remoteDir,
     };
   }
 
   return { method: 'none' };
+}
+
+/**
+ * Prefix postSync with `cd remoteDir &&` if remoteDir is set
+ * and the command doesn't already start with `cd `.
+ */
+function normalizePostSync(
+  postSync: string | undefined,
+  remoteDir: string | undefined,
+): string | undefined {
+  if (!postSync) return undefined;
+  if (!remoteDir) return postSync;
+
+  // If the user already wrote `cd /something`, don't double-prefix
+  if (postSync.trimStart().startsWith('cd ')) return postSync;
+
+  return `cd ${remoteDir} && ${postSync}`;
 }
 
 /**
@@ -165,12 +204,13 @@ function normalizeService(
   root: ShipwayConfig,
   serviceName: string,
 ): NormalizedService {
+  const remoteDir = root.remoteDir;
   return {
     build: svc.build ?? root.build,
-    sync: normalizeSyncEntries(svc.sync ?? root.sync, root.exclude),
-    postSync: svc.postSync ?? root.postSync,
+    sync: normalizeSyncEntries(svc.sync ?? root.sync, root.exclude, remoteDir),
+    postSync: normalizePostSync(svc.postSync ?? root.postSync, remoteDir),
     start: svc.start ?? root.start,
-    restart: normalizeRestart(svc.restart, svc.start ?? root.start, root.name, serviceName),
+    restart: normalizeRestart(svc.restart, svc.start ?? root.start, root.name, serviceName, remoteDir),
     health: normalizeHealth(svc.health, svc.port ?? root.port),
     cwd: svc.cwd,
   };

@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 export const SyncEntrySchema = z.object({
   local: z.union([z.string(), z.array(z.string())]),
-  remote: z.string(),
+  remote: z.string().optional(),
   exclude: z.array(z.string()).optional(),
   delete: z.boolean().optional(),
   checksum: z.boolean().optional(),
@@ -72,6 +72,7 @@ export const ShipwayConfigSchema = z.object({
   name: z.string().min(1),
   url: z.string().url().optional(),
   host: HostSchema,
+  remoteDir: z.string().optional(),
   build: z.string().optional(),
   sync: SyncFlexSchema.optional(),
   postSync: z.string().optional(),

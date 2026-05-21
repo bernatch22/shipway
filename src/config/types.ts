@@ -1,4 +1,4 @@
-import type { SyncEntry, RestartConfig, HostConfig } from './schema.js';
+import type { SyncEntry, HostConfig } from './schema.js';
 
 /**
  * Resolved host info after processing all host config shapes.
@@ -24,11 +24,12 @@ export interface NormalizedConfig {
   name: string;
   url?: string;
   host: HostConfig;
+  remoteDir?: string;
   sync: SyncEntry[];
   build?: string;
   postSync?: string;
   start?: string;
-  restart: RestartConfig;
+  restart: NormalizedRestart;
   health?: NormalizedHealth;
   exclude: string[];
   services?: Record<string, NormalizedService>;
@@ -41,12 +42,19 @@ export interface NormalizedHealth {
   delayMs: number;
 }
 
+export interface NormalizedRestart {
+  method: 'pm2' | 'systemd' | 'none';
+  name?: string;
+  start?: string;
+  cwd?: string;
+}
+
 export interface NormalizedService {
   build?: string;
   sync: SyncEntry[];
   postSync?: string;
   start?: string;
-  restart: RestartConfig;
+  restart: NormalizedRestart;
   health?: NormalizedHealth;
   cwd?: string;
 }

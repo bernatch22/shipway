@@ -22,27 +22,35 @@ export async function runSync(
   logger: Logger,
 ): Promise<void> {
   const { server, keyPath, dryRun = false } = options;
+
+  if (!entry.remote) {
+    throw new RsyncError('Sync entry is missing "remote" — this should have been caught during normalization');
+  }
+  const remote = entry.remote;
+
   let deleteEnabled = entry.delete !== false;
 
   // Safety: check shallow path
   if (deleteEnabled) {
-    assertSafeRemote(entry.remote);
+    assertSafeRemote(remote);
   }
 
   const locals = Array.isArray(entry.local) ? entry.local : [entry.local];
 
   // Safety: disable delete for multiple locals to the same remote
   if (shouldDisableDeleteForMultiLocal(entry)) {
-    logger.warn(multiLocalWarning(entry.remote, locals.length));
+    logger.warn(multiLocalWarning(remote, locals.length));
     deleteEnabled = false;
   }
 
   for (const local of locals) {
-    if (!dryRun && !existsSync(local)) {
+    const localExists = existsSync(local);
+
+    if (!dryRun && !localExists) {
       throw new RsyncError(`Local path not found: ${local}`);
     }
 
-    const isDir = dryRun ? true : statSync(local).isDirectory();
+    const isDir = localExists ? statSync(local).isDirectory() : true;
 
     const builder = new RsyncArgsBuilder()
       .ssh(keyPath)
@@ -50,7 +58,7 @@ export async function runSync(
       .delete(deleteEnabled && isDir)
       .dryRun(dryRun)
       .source(local, isDir)
-      .destination(server, entry.remote);
+      .destination(server, remote);
 
     if (entry.exclude) {
       builder.excludeMany(entry.exclude);
@@ -62,7 +70,7 @@ export async function runSync(
     const result = await exec('rsync', args);
     if (result.exitCode !== 0) {
       throw new RsyncError(
-        `rsync failed for ${local} → ${server}:${entry.remote}\n${result.stderr}`,
+        `rsync failed for ${local} → ${server}:${remote}\n${result.stderr}`,
         result.exitCode,
       );
     }

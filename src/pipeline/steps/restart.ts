@@ -25,11 +25,11 @@ export class RestartStep implements DeployStep {
 
     // Use start() which handles the "not found" case with initial creation
     if (restart.start) {
-      const remoteDir = config.sync[0]?.remote ?? `/home/${ctx.host.user}/${config.name}`;
+      const cwd = restart.cwd ?? config.remoteDir ?? config.sync[0]?.remote ?? `/home/${ctx.host.user}/${config.name}`;
       await pm.start(ssh, {
         name,
         command: restart.start,
-        cwd: remoteDir,
+        cwd,
       });
     } else {
       await pm.restart(ssh, name);
