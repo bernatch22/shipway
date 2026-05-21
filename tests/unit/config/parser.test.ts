@@ -94,4 +94,46 @@ describe('Config Parser', () => {
       ).rejects.toThrow(/Validation failed/);
     });
   });
+
+  describe('environments', () => {
+    it('should merge staging environment overrides', async () => {
+      const config = await loadConfig(resolve(FIXTURES, 'with-envs.yml'), 'staging');
+
+      expect(config.name).toBe('taskforge');
+      expect(config.host).toBe('deploy@10.0.0.10');
+      expect(config.remoteDir).toBe('~/taskforge-staging');
+      expect(config.url).toBe('https://staging.taskforge.dev');
+      // Base fields preserved
+      expect(config.build).toBe('npm run build');
+      expect(config.start).toBe('node server.js');
+    });
+
+    it('should merge prod environment with object host', async () => {
+      const config = await loadConfig(resolve(FIXTURES, 'with-envs.yml'), 'prod');
+
+      expect(config.host).toEqual({ ssh: 'deploy@10.0.0.20', key: '~/.ssh/prod_key' });
+      expect(config.remoteDir).toBe('~/taskforge');
+      expect(config.url).toBe('https://taskforge.dev');
+    });
+
+    it('should apply postSync remoteDir from env', async () => {
+      const config = await loadConfig(resolve(FIXTURES, 'with-envs.yml'), 'staging');
+
+      // postSync should be prefixed with staging remoteDir
+      expect(config.postSync).toBe('cd ~/taskforge-staging && npm install --omit=dev');
+    });
+
+    it('should throw for unknown environment', async () => {
+      await expect(
+        loadConfig(resolve(FIXTURES, 'with-envs.yml'), 'canary'),
+      ).rejects.toThrow(/Environment "canary" not found/);
+    });
+
+    it('should load base config without --env', async () => {
+      const config = await loadConfig(resolve(FIXTURES, 'with-envs.yml'));
+
+      expect(config.host).toBe('deploy@staging.example.com');
+      expect(config.remoteDir).toBe('~/taskforge');
+    });
+  });
 });

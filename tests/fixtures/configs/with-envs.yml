@@ -1,0 +1,23 @@
+name: taskforge
+url: https://staging.taskforge.dev
+host: deploy@staging.example.com
+remoteDir: ~/taskforge
+build: npm run build
+sync: ./dist
+postSync: npm install --omit=dev
+start: node server.js
+port: 3000
+
+environments:
+  staging:
+    host: deploy@10.0.0.10
+    remoteDir: ~/taskforge-staging
+    url: https://staging.taskforge.dev
+
+  prod:
+    host:
+      ssh: deploy@10.0.0.20
+      key: ~/.ssh/prod_key
+    remoteDir: ~/taskforge
+    url: https://taskforge.dev
+    port: 3000

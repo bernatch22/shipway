@@ -24,6 +24,7 @@ Shipway is a CLI for shipping Node.js, Python, and Ruby apps to a VPS without Do
   - [remoteDir](#remotedir)
   - [Sync Formats](#sync-formats)
   - [Multi-Service](#multi-service)
+  - [Environments](#environments)
 - [Commands](#commands)
   - [Deploy](#deploy)
   - [Operations](#operations)
@@ -171,6 +172,14 @@ services:                        # optional — multi-service config (see below)
   worker:
     sync: ./dist/worker → ~/my-app/worker
     start: node worker/index.js
+
+environments:                    # optional — per-environment overrides
+  staging:
+    host: deploy@staging.example.com
+    remoteDir: ~/my-app-staging
+  prod:
+    host: deploy@prod.example.com
+    url: https://my-app.com
 ```
 
 ### Host Formats
@@ -280,6 +289,58 @@ services:
 
 Each service gets its own pm2 process: `taskforge-api`, `taskforge-worker`, `taskforge-dashboard`.
 
+### Environments
+
+Deploy to different servers per environment with a single config file:
+
+```yaml
+name: my-app
+remoteDir: ~/my-app
+build: npm run build
+sync: ./dist
+postSync: npm install --omit=dev
+start: node server.js
+port: 3000
+
+environments:
+  staging:
+    host: deploy@staging.example.com
+    remoteDir: ~/my-app-staging
+    url: https://staging.my-app.com
+
+  prod:
+    host:
+      ssh: deploy@prod.example.com
+      key: ~/.ssh/prod_key
+    url: https://my-app.com
+```
+
+Use the `--env` flag with any command:
+
+```bash
+shipway deploy --env staging     # deploy to staging server
+shipway deploy --env prod        # deploy to production
+shipway status --env prod        # check production status
+shipway logs --env staging       # tail staging logs
+```
+
+**How merging works:**
+
+- Environment fields **override** the base config (shallow merge)
+- Fields not set in the environment **inherit** from the base
+- `name`, `build`, `sync`, `start`, etc. are all inheritable
+- `remoteDir` from the environment is used for `postSync` prefixing and pm2 cwd
+
+| Field | Base | `--env staging` | Result |
+|-------|------|-----------------|--------|
+| `host` | — | `deploy@staging.example.com` | `deploy@staging.example.com` |
+| `remoteDir` | `~/my-app` | `~/my-app-staging` | `~/my-app-staging` |
+| `build` | `npm run build` | *(not set)* | `npm run build` |
+| `postSync` | `npm install` | *(not set)* | `cd ~/my-app-staging && npm install` |
+
+> Without `--env`, shipway uses the base config directly (no environment overrides).
+> If an `--env` flag is given but no `environments:` block exists, shipway exits with an error.
+
 ---
 
 ## Commands
@@ -291,6 +352,8 @@ Each service gets its own pm2 process: `taskforge-api`, `taskforge-worker`, `tas
 | `shipway deploy` | Full pipeline: build → sync → restart → health check |
 | `shipway deploy --dry-run` | Preview everything without executing |
 | `shipway deploy -n` | Short flag for `--dry-run` |
+| `shipway deploy --env staging` | Deploy using the `staging` environment |
+| `shipway deploy api` | Deploy only the `api` service (multi-service) |
 
 ### Operations
 

@@ -18,7 +18,7 @@ export function normalize(raw: ShipwayConfig): NormalizedConfig {
   const result: NormalizedConfig = {
     name: raw.name,
     url: raw.url,
-    host: raw.host,
+    host: raw.host!,
     remoteDir,
     sync: syncEntries,
     build: raw.build,

@@ -46,9 +46,11 @@ async function main(): Promise<number> {
   let config: NormalizedConfig | null = null;
 
   const commandsWithoutConfig = new Set(['help', 'ls', 'link', 'unlink', 'doctor', 'migrate', 'mcp']);
+  const envFlag = typeof parsed.flags.env === 'string' ? parsed.flags.env : undefined;
+
   if (!commandsWithoutConfig.has(commandName)) {
     try {
-      config = await loadConfigFromDir(cwd);
+      config = await loadConfigFromDir(cwd, envFlag);
     } catch {
       // Config load failed — command will handle null config
     }

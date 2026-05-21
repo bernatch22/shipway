@@ -5,6 +5,7 @@ import { parse as parseYaml } from 'yaml';
 import { ShipwayConfigSchema } from './schema.js';
 import { normalize } from './normalize.js';
 import { ConfigError } from '../errors/index.js';
+import type { ShipwayConfig } from './schema.js';
 import type { NormalizedConfig } from './types.js';
 
 const CONFIG_FILENAMES = ['shipway.yml', 'shipway.yaml', 'shipway.json'];
@@ -24,9 +25,13 @@ export function findConfigFile(dir: string): string | null {
 /**
  * Load and parse a shipway config file.
  * Supports both YAML and JSON formats.
+ * If `env` is provided, merges the matching environment overrides on top.
  * Returns a fully normalized config.
  */
-export async function loadConfig(filePath: string): Promise<NormalizedConfig> {
+export async function loadConfig(
+  filePath: string,
+  env?: string,
+): Promise<NormalizedConfig> {
   const content = await readFile(filePath, 'utf-8');
 
   let raw: unknown;
@@ -55,13 +60,70 @@ export async function loadConfig(filePath: string): Promise<NormalizedConfig> {
     throw new ConfigError('root', `Validation failed:\n${issues.join('\n')}`);
   }
 
-  return normalize(result.data);
+  const merged = env ? mergeEnvironment(result.data, env) : result.data;
+
+  // Validate host is present after merge
+  if (!merged.host) {
+    throw new ConfigError('host', 'host is required (set it at root level or in the environment)');
+  }
+
+  return normalize(merged as ShipwayConfig & { host: ShipwayConfig['host'] });
+}
+
+/**
+ * Merge environment overrides onto the base config.
+ * Environment fields override base fields (shallow merge per top-level key).
+ */
+function mergeEnvironment(
+  base: ShipwayConfig,
+  envName: string,
+): ShipwayConfig {
+  if (!base.environments) {
+    throw new ConfigError(
+      'environments',
+      `No environments defined in config. Cannot use --env ${envName}`,
+    );
+  }
+
+  const env = base.environments[envName];
+  if (!env) {
+    const available = Object.keys(base.environments).join(', ');
+    throw new ConfigError(
+      'environments',
+      `Environment "${envName}" not found. Available: ${available}`,
+    );
+  }
+
+  // Shallow merge: env fields override base fields
+  // Remove the `environments` key from the result (it's been consumed)
+  const { environments: _, ...baseWithout } = base;
+
+  return {
+    ...baseWithout,
+    ...stripUndefined(env),
+  } as ShipwayConfig;
+}
+
+/**
+ * Remove undefined values so they don't override defined base values.
+ */
+function stripUndefined(obj: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      result[key] = value;
+    }
+  }
+  return result;
 }
 
 /**
  * Load config from a directory, auto-detecting the config file.
  */
-export async function loadConfigFromDir(dir: string): Promise<NormalizedConfig> {
+export async function loadConfigFromDir(
+  dir: string,
+  env?: string,
+): Promise<NormalizedConfig> {
   const configPath = findConfigFile(dir);
   if (!configPath) {
     throw new ConfigError(
@@ -69,5 +131,5 @@ export async function loadConfigFromDir(dir: string): Promise<NormalizedConfig> 
       `No shipway config found in ${dir}. Expected one of: ${CONFIG_FILENAMES.join(', ')}`,
     );
   }
-  return loadConfig(configPath);
+  return loadConfig(configPath, env);
 }
