@@ -7,6 +7,7 @@ Shipway is a CLI for shipping Node.js, Python, and Ruby apps to a VPS without Do
 - **7-line config** — most projects deploy with just `name`, `host`, `build`, `sync`, `start`, `port`
 - **Multi-service** — deploy API + worker + dashboard in one `shipway.yml`
 - **Safe by default** — shallow-path delete protection, multi-local guards, dry-run mode
+- **Environments** — staging and prod in the same config, switch with `--env`
 - **Registry** — `shipway link` once, then `shipway deploy myapp` from anywhere
 - **MCP server** — AI agents can inspect and manage production via the Model Context Protocol
 - **Zero cloud lock-in** — pure SSH, works with any VPS, any provider
@@ -30,6 +31,7 @@ Shipway is a CLI for shipping Node.js, Python, and Ruby apps to a VPS without Do
   - [Operations](#operations)
   - [Project Management](#project-management)
   - [Advanced](#advanced)
+  - [Global Flags](#global-flags)
 - [Deploy Pipeline](#deploy-pipeline)
 - [Process Managers](#process-managers)
 - [Safety Guards](#safety-guards)
@@ -40,6 +42,8 @@ Shipway is a CLI for shipping Node.js, Python, and Ruby apps to a VPS without Do
 - [Testing](#testing)
 - [Environment Variables](#environment-variables)
 - [Examples](#examples)
+- [Scripts](#scripts)
+- [Tech Stack](#tech-stack)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -47,21 +51,27 @@ Shipway is a CLI for shipping Node.js, Python, and Ruby apps to a VPS without Do
 
 ## Quick Start
 
-```bash
-# Install globally
-npm i -g shipway
+**1. Install**
 
-# Create a config in your project
-cat > shipway.yml << 'EOF'
+```bash
+npm i -g shipway
+```
+
+**2. Add a `shipway.yml` to your project**
+
+```yaml
 name: my-app
 host: deploy@192.168.1.100
+remoteDir: ~/my-app
 build: npm run build
-sync: ./dist → ~/my-app
+sync: ./dist
 start: node server.js
 port: 3000
-EOF
+```
 
-# Ship it
+**3. Deploy**
+
+```bash
 shipway deploy
 ```
 
@@ -163,9 +173,8 @@ exclude:                         # global rsync excludes (applied to all sync en
   - node_modules
   - ._*
 
-services:                        # optional — multi-service config (see below)
+services:                        # optional — multi-service (see below)
   api:
-    build: npm run build:api
     sync: ./dist/api → ~/my-app/api
     start: node api/server.js
     port: 4001
@@ -173,7 +182,7 @@ services:                        # optional — multi-service config (see below)
     sync: ./dist/worker → ~/my-app/worker
     start: node worker/index.js
 
-environments:                    # optional — per-environment overrides
+environments:                    # optional — per-environment overrides (see below)
   staging:
     host: deploy@staging.example.com
     remoteDir: ~/my-app-staging
@@ -214,7 +223,7 @@ Set `remoteDir` to avoid repeating the remote path everywhere. It affects three 
 | **postSync** | `postSync: cd ~/my-app && npm install` | `postSync: npm install` (auto-prefixed) |
 | **pm2 cwd** | inferred from first sync entry | `~/my-app` |
 
-Before:
+**Before:**
 
 ```yaml
 sync:
@@ -223,7 +232,7 @@ sync:
 postSync: cd /home/deploy/my-app && npm install --omit=dev
 ```
 
-After:
+**After:**
 
 ```yaml
 remoteDir: ~/my-app
@@ -289,9 +298,18 @@ services:
 
 Each service gets its own pm2 process: `taskforge-api`, `taskforge-worker`, `taskforge-dashboard`.
 
+Deploy all services or just one:
+
+```bash
+shipway deploy              # all services
+shipway deploy api          # just the API
+shipway logs worker         # logs for one service
+shipway status              # status of all services
+```
+
 ### Environments
 
-Deploy to different servers per environment with a single config file:
+Deploy to different servers per environment from a single config file:
 
 ```yaml
 name: my-app
@@ -315,21 +333,16 @@ environments:
     url: https://my-app.com
 ```
 
-Use the `--env` flag with any command:
+Use `--env` with any command:
 
 ```bash
-shipway deploy --env staging     # deploy to staging server
+shipway deploy --env staging     # deploy to staging
 shipway deploy --env prod        # deploy to production
 shipway status --env prod        # check production status
 shipway logs --env staging       # tail staging logs
 ```
 
-**How merging works:**
-
-- Environment fields **override** the base config (shallow merge)
-- Fields not set in the environment **inherit** from the base
-- `name`, `build`, `sync`, `start`, etc. are all inheritable
-- `remoteDir` from the environment is used for `postSync` prefixing and pm2 cwd
+**How merging works:** environment fields override the base config (shallow merge). Fields not set in the environment inherit from the base:
 
 | Field | Base | `--env staging` | Result |
 |-------|------|-----------------|--------|
@@ -338,8 +351,7 @@ shipway logs --env staging       # tail staging logs
 | `build` | `npm run build` | *(not set)* | `npm run build` |
 | `postSync` | `npm install` | *(not set)* | `cd ~/my-app-staging && npm install` |
 
-> Without `--env`, shipway uses the base config directly (no environment overrides).
-> If an `--env` flag is given but no `environments:` block exists, shipway exits with an error.
+> Without `--env`, the base config is used directly.
 
 ---
 
@@ -351,7 +363,6 @@ shipway logs --env staging       # tail staging logs
 |---------|-------------|
 | `shipway deploy` | Full pipeline: build → sync → restart → health check |
 | `shipway deploy --dry-run` | Preview everything without executing |
-| `shipway deploy -n` | Short flag for `--dry-run` |
 | `shipway deploy --env staging` | Deploy using the `staging` environment |
 | `shipway deploy api` | Deploy only the `api` service (multi-service) |
 
@@ -394,6 +405,7 @@ shipway logs --env staging       # tail staging logs
 | Flag | Description |
 |------|-------------|
 | `--dry-run`, `-n` | Preview commands without executing |
+| `--env <name>` | Use a specific environment |
 | `--json` | JSON output (for CI/CD pipelines) |
 | `--quiet` | Minimal output |
 | `--version`, `-v` | Show version |
@@ -403,7 +415,7 @@ shipway logs --env staging       # tail staging logs
 
 ## Deploy Pipeline
 
-Every deploy runs through a fixed pipeline of 5 steps. Each step can be skipped if the config doesn't define it:
+Every deploy runs through a fixed pipeline of 5 steps:
 
 ```
 ┌─────────┐    ┌──────┐    ┌───────────┐    ┌─────────┐    ┌──────────────┐
@@ -412,29 +424,25 @@ Every deploy runs through a fixed pipeline of 5 steps. Each step can be skipped 
   local          rsync        remote SSH      pm2/systemd     curl via SSH
 ```
 
+Each step is skipped if the config doesn't define it. Each step is timed independently. On failure, the pipeline stops and shows the failing step with its error.
+
 | Step | When it runs | What it does |
 |------|-------------|--------------|
 | **Build** | `build` is set | Runs the build command locally via `sh -c` |
-| **Sync** | `sync` is set | `rsync` with `-avz --stats`, optional `--delete` and `--checksum` |
-| **Post-sync** | `postSync` is set | Runs a command on the remote server (e.g. `npm install --omit=dev`) |
-| **Restart** | `start` or `restart` is set | Restarts (or starts) the process via pm2/systemd |
+| **Sync** | `sync` is set | `rsync -avz --stats`, optional `--delete` and `--checksum` |
+| **Post-sync** | `postSync` is set | Runs a command on the remote server (e.g. `npm install`) |
+| **Restart** | `start` or `restart` is set | Restarts (or creates) the process via pm2/systemd |
 | **Health check** | `port` or `health` is set | Curls the health URL with retries |
-
-Each step is timed independently. On failure, the pipeline stops and shows the failing step with its error.
 
 ---
 
 ## Process Managers
 
-Shipway supports three process managers via the adapter pattern:
-
 | Manager | Config | Use case |
 |---------|--------|----------|
-| **pm2** (default) | `restart.method: pm2` or just `start: ...` | Node.js apps, most common |
-| **systemd** | `restart.method: systemd` | System services, requires sudo |
-| **none** | `restart.method: none` | Static sites, no process to manage |
-
-### pm2 (default)
+| **pm2** (default) | `start: node server.js` | Node.js apps, most common |
+| **systemd** | `restart: { method: systemd, name: my-app }` | System services, requires sudo |
+| **none** | `restart: { method: none }` | Static sites, no process to manage |
 
 When you specify `start`, shipway auto-configures pm2:
 
@@ -444,38 +452,25 @@ start: node server.js    # → pm2 start 'node server.js' --name my-app
 
 First deploy creates the pm2 process. Subsequent deploys restart it with `pm2 restart --update-env`.
 
-### systemd
-
-```yaml
-restart:
-  method: systemd
-  name: my-app            # systemd unit name
-```
-
-Uses `sudo systemctl restart my-app`. The systemd unit file must be created separately.
-
 ---
 
 ## Safety Guards
 
-Shipway inherits and improves on safety patterns from battle-tested deployments:
-
 ### Shallow-path delete protection
 
-`rsync --delete` is refused on remote paths with fewer than 3 segments. This prevents catastrophic mistakes like accidentally wiping `/home/deploy`:
+`rsync --delete` is refused on remote paths with fewer than 3 segments. Prevents accidentally wiping `/home/deploy`:
 
 ```yaml
-# ✅ Safe — 3+ segments
-sync: ./dist → ~/my-app/dist
+# ✅ Safe — /home/deploy/my-app = 3 segments
+sync: ./dist → ~/my-app
 
-# ❌ Rejected — too shallow
-sync: ./dist → ~/my-app        # if ~/my-app resolves to /home/deploy/my-app → OK (3 segments)
-sync: ./dist → /var             # REFUSED
+# ❌ Refused — too shallow
+sync: ./dist → /var
 ```
 
 ### Multi-local delete guard
 
-When multiple `local` sources target the same `remote`, `--delete` is automatically disabled with a warning — otherwise each rsync run would wipe the previous one's output:
+When multiple `local` sources target the same `remote`, `--delete` is automatically disabled with a warning:
 
 ```yaml
 sync:
@@ -486,9 +481,10 @@ sync:
 
 ### Dry-run mode
 
-`shipway deploy --dry-run` runs the full pipeline but:
+`shipway deploy --dry-run` previews the full pipeline:
+
 - Build runs normally (so you can verify it works)
-- Rsync runs with `-n` (shows what would be transferred)
+- Rsync runs with `-n` (shows what would transfer)
 - Remote commands are logged but not executed
 - Health check is skipped
 
@@ -499,55 +495,29 @@ sync:
 Register projects globally, then deploy from anywhere:
 
 ```bash
-# In your project directory
-cd ~/my-app
-shipway link
-
-# Now deploy from anywhere
-shipway deploy my-app
-
-# List all projects
-shipway ls
-
-# ● my-app (deployed: 5/21/2026)
-#   /Users/you/my-app
+cd ~/my-app && shipway link        # register
+shipway deploy my-app              # deploy from anywhere
+shipway ls                         # list all projects
 ```
 
-Projects are stored in `~/.shipway/projects.yml`:
-
-```yaml
-projects:
-  - alias: my-app
-    path: /Users/you/my-app
-    addedAt: "2026-05-21T12:00:00.000Z"
-    lastDeployAt: "2026-05-21T14:30:00.000Z"
-```
+Projects are stored in `~/.shipway/projects.yml`.
 
 ---
 
 ## Migrating from shipit
-
-If you're migrating from the `shipit` tool:
 
 ```bash
 shipway migrate              # converts shipit.json → shipway.yml in CWD
 shipway migrate ~/other-app  # or specify a directory
 ```
 
-The migrator intelligently converts:
-
 | shipit.json | shipway.yml |
 |-------------|-------------|
 | `{ host: { ip, user } }` | `host: user@ip` |
-| `{ restart: { method: "pm2", start: "node app.js" } }` | `start: node app.js` |
+| `{ restart: { method: "pm2", start: "..." } }` | `start: ...` |
 | `{ health: { url: "http://localhost:3000/" } }` | `port: 3000` |
-| `{ sync: { local, remote } }` | `sync: local → remote` |
 
-After migration, review the generated `shipway.yml` and test:
-
-```bash
-shipway deploy --dry-run
-```
+After migration, verify with `shipway deploy --dry-run`.
 
 ---
 
@@ -556,171 +526,78 @@ shipway deploy --dry-run
 ```
 shipway/
 ├── src/
-│   ├── cli.ts                          # Entry point — argv parser, composition root
-│   ├── commands/
-│   │   ├── index.ts                    # Command registry (name → handler)
-│   │   ├── types.ts                    # Command interface + CommandContext
-│   │   ├── deploy.ts                   # Build → sync → restart → health
-│   │   ├── status.ts                   # Remote process status + health
-│   │   ├── logs.ts                     # Tail remote logs
-│   │   ├── ssh.ts                      # Interactive SSH session
-│   │   ├── exec.ts                     # Run remote command
+│   ├── cli.ts                   # Entry point, argv parser, composition root
+│   ├── commands/                # One file per CLI command
+│   │   ├── deploy.ts            # Build → sync → restart → health
+│   │   ├── status.ts            # Remote process status
+│   │   ├── logs.ts              # Tail remote logs
 │   │   ├── restart.ts / stop.ts / start.ts
-│   │   ├── open.ts                     # Open URL in browser
-│   │   ├── link.ts / unlink.ts / ls.ts # Project registry management
-│   │   ├── migrate.ts                  # shipit.json → shipway.yml
-│   │   └── help.ts                     # ANSI-colored help output
-│   ├── config/
-│   │   ├── schema.ts                   # Zod schemas (validation + type inference)
-│   │   ├── parser.ts                   # YAML/JSON load → validate → normalize
-│   │   ├── normalize.ts               # Shorthand expansion (string→object, port→health)
-│   │   └── types.ts                    # NormalizedConfig, ResolvedHost
-│   ├── host/
-│   │   └── resolver.ts                 # HostResolver — string, SSH object, IP object
-│   ├── ssh/
-│   │   ├── args.ts                     # SSH flag builder (key resolution, options)
-│   │   └── client.ts                   # SSHClient — exec, interactive, tunnel
-│   ├── rsync/
-│   │   ├── builder.ts                  # RsyncArgsBuilder (fluent API)
-│   │   ├── runner.ts                   # Execute rsync with safety checks
-│   │   └── safety.ts                   # Shallow-path + multi-local guards
-│   ├── pipeline/
-│   │   ├── deploy-pipeline.ts          # Pipeline executor with timing
-│   │   ├── deploy-context.ts           # Immutable context for steps
-│   │   └── steps/
-│   │       ├── build.ts                # Local build via sh -c
-│   │       ├── sync.ts                 # rsync to remote
-│   │       ├── post-sync.ts            # Remote command after sync
-│   │       ├── restart.ts              # pm2/systemd restart
-│   │       └── health-check.ts         # HTTP health with retries
-│   ├── process-managers/
-│   │   ├── types.ts                    # ProcessManager interface
-│   │   ├── pm2.ts                      # pm2 adapter
-│   │   ├── systemd.ts                  # systemd adapter
-│   │   ├── none.ts                     # No-op adapter
-│   │   └── index.ts                    # Factory: method → adapter
-│   ├── health/
-│   │   └── checker.ts                  # curl via SSH with retry/backoff
-│   ├── registry/
-│   │   ├── types.ts                    # Project, ProjectRepository
-│   │   ├── file-repository.ts          # ~/.shipway/projects.yml (atomic writes)
-│   │   └── resolver.ts                 # Alias → project lookup
-│   ├── errors/
-│   │   ├── base.ts                     # ShipwayError abstract class
-│   │   ├── config-error.ts             # Config validation errors
-│   │   ├── ssh-error.ts                # Remote command failures
-│   │   ├── rsync-error.ts              # File sync failures
-│   │   ├── deploy-error.ts             # Pipeline step failures
-│   │   ├── exit-codes.ts               # Typed exit code enum
-│   │   └── index.ts                    # Barrel export
-│   ├── logging/
-│   │   ├── colors.ts                   # ANSI escape codes (no chalk)
-│   │   ├── format.ts                   # Step indicators, timing, headers
-│   │   ├── logger.ts                   # Logger (human/JSON, stderr-only for MCP)
-│   │   └── index.ts
-│   └── utils/
-│       ├── exec.ts                     # Child process spawn with AbortSignal
-│       ├── paths.ts                    # Tilde expansion, config dirs
-│       ├── argv.ts                     # CLI argument parser (50 lines, no framework)
-│       └── atomic-write.ts             # Write-then-rename for crash safety
+│   │   ├── ssh.ts / exec.ts / open.ts
+│   │   ├── link.ts / unlink.ts / ls.ts
+│   │   ├── migrate.ts           # shipit.json → shipway.yml
+│   │   └── help.ts
+│   ├── config/                  # YAML parsing, zod validation, normalization
+│   │   ├── schema.ts            # Zod schemas
+│   │   ├── parser.ts            # Load + validate + env merge
+│   │   ├── normalize.ts         # Shorthand expansion
+│   │   └── types.ts             # NormalizedConfig, ResolvedHost
+│   ├── pipeline/                # Deploy pipeline executor + steps
+│   │   ├── deploy-pipeline.ts
+│   │   └── steps/               # build, sync, post-sync, restart, health-check
+│   ├── rsync/                   # RsyncArgsBuilder + safety guards
+│   ├── ssh/                     # SSHClient + arg builder
+│   ├── process-managers/        # pm2, systemd, none adapters
+│   ├── host/                    # Host resolution (string → ResolvedHost)
+│   ├── registry/                # Project registry (~/.shipway/projects.yml)
+│   ├── health/                  # HTTP health checker with retries
+│   ├── errors/                  # Typed error classes + exit codes
+│   ├── logging/                 # ANSI colors, step formatting, Logger
+│   └── utils/                   # exec, argv, paths, atomic-write
 ├── tests/
-│   ├── unit/
-│   │   ├── config/parser.test.ts       # Config parsing + normalization (10 tests)
-│   │   ├── host/resolver.test.ts       # Host resolution (7 tests)
-│   │   ├── rsync/rsync.test.ts         # Builder + safety guards (12 tests)
-│   │   └── utils/utils.test.ts         # Argv, paths, format, logger (15 tests)
-│   └── fixtures/
-│       └── configs/                    # Real user configs for testing
-│           ├── deutschepolska.yml
-│           ├── blossom.yml
-│           └── invalid/
+│   ├── unit/                    # 49 tests across 4 suites
+│   └── fixtures/configs/        # Real production configs for testing
 ├── examples/
-│   └── multi-service/                  # TaskForge: API + Worker + Dashboard
-├── bin/                                # tsc output (gitignored)
+│   └── multi-service/           # TaskForge: API + Worker + Dashboard
+├── bin/                         # tsc output (gitignored)
 ├── package.json
 ├── tsconfig.json
 ├── vitest.config.ts
-├── biome.json
-├── LICENSE                             # MIT
-└── CONTRIBUTING.md
+└── LICENSE                      # MIT
 ```
 
 ---
 
 ## Design Patterns
 
-Shipway uses well-defined design patterns to keep the codebase modular and testable:
-
 | Pattern | Where | Purpose |
 |---------|-------|---------|
-| **Command** | `src/commands/*.ts` | Each CLI subcommand is a class with `execute(ctx)` |
-| **Pipeline** | `src/pipeline/` | Deploy is a fixed sequence of independent, testable steps |
+| **Command** | `src/commands/` | Each subcommand is a class with `execute(ctx)` |
+| **Pipeline** | `src/pipeline/` | Deploy = fixed sequence of testable steps |
 | **Adapter** | `src/process-managers/` | pm2, systemd, none share one interface |
-| **Factory** | `src/host/resolver.ts` | Resolves any host config shape to `ResolvedHost` |
-| **Builder** | `src/rsync/builder.ts` | Fluent API for composing rsync args safely |
-| **Repository** | `src/registry/` | Project registry behind an interface (file-backed) |
-| **DI** | `src/cli.ts` | Constructor injection — no hidden singletons |
-
-### Command Pattern
-
-```typescript
-export interface Command {
-  readonly name: string;
-  readonly description: string;
-  readonly usage: string;
-  execute(ctx: CommandContext): Promise<number>; // exit code
-}
-```
-
-### Pipeline Pattern
-
-```typescript
-export interface DeployStep {
-  readonly name: string;
-  shouldRun(ctx: DeployContext): boolean;
-  run(ctx: DeployContext): Promise<void>;
-}
-```
-
-### Adapter Pattern
-
-```typescript
-export interface ProcessManager {
-  readonly kind: 'pm2' | 'systemd' | 'none';
-  start(ssh: SSHClient, opts: StartOpts): Promise<void>;
-  stop(ssh: SSHClient, name: string): Promise<void>;
-  restart(ssh: SSHClient, name: string): Promise<void>;
-  status(ssh: SSHClient, name: string): Promise<ProcessStatus>;
-  logs(ssh: SSHClient, name: string, opts: LogsOpts): Promise<string>;
-}
-```
+| **Builder** | `src/rsync/builder.ts` | Fluent API for composing rsync args |
+| **Repository** | `src/registry/` | Project registry behind an interface |
+| **DI** | `src/cli.ts` | Constructor injection, no hidden singletons |
 
 ---
 
 ## Testing
 
 ```bash
-# Run all tests
-npm test
-
-# Watch mode
-npm run test:watch
-
-# With coverage
-npm run test:coverage
+npm test                # run all tests
+npm run test:watch      # watch mode
+npm run test:coverage   # coverage report
 ```
 
-Tests use [Vitest](https://vitest.dev/) with no mocking frameworks — pure unit tests against real config fixtures:
+49 tests across 4 suites using [Vitest](https://vitest.dev/):
 
-| Suite | Tests | What it covers |
-|-------|:-----:|---------------|
-| `config/parser.test.ts` | 10 | YAML parsing, normalization, shorthand expansion, validation errors |
-| `host/resolver.test.ts` | 7 | String host, SSH object, IP object, key passthrough, error cases |
-| `rsync/rsync.test.ts` | 12 | Arg building, checksum, delete, dry-run, exclude, safety guards |
-| `utils/utils.test.ts` | 15 | Argv parsing, tilde expansion, duration formatting, secret redaction |
-| **Total** | **44** | |
+| Suite | Tests | Covers |
+|-------|:-----:|--------|
+| `config/parser.test.ts` | 15 | Parsing, normalization, environments, validation |
+| `host/resolver.test.ts` | 7 | String, SSH object, IP object, key passthrough |
+| `rsync/rsync.test.ts` | 12 | Arg building, safety guards, checksum, delete |
+| `utils/utils.test.ts` | 15 | Argv, paths, formatting, logger |
 
-Test fixtures use the real user configs (`deutschepolska.yml`, `blossom.yml`) to verify that actual production configs parse correctly — no synthetic-only tests.
+Test fixtures use real production configs to verify that actual deployments parse correctly.
 
 ---
 
@@ -728,38 +605,29 @@ Test fixtures use the real user configs (`deutschepolska.yml`, `blossom.yml`) to
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SHIPWAY_SSH_KEY` | — | Path to SSH private key (overrides config `key` field) |
-
-> SSH key resolution: config `key` field → `SHIPWAY_SSH_KEY` env → system ssh-agent (`~/.ssh/id_*`)
+| `SHIPWAY_SSH_KEY` | — | Path to SSH private key (overrides config `key`) |
 
 ---
 
 ## Examples
 
-### Multi-Service (TaskForge)
+### TaskForge (Multi-Service)
 
-A task queue system with three Node.js services deployed from one `shipway.yml`:
+A task queue with three Node.js services deployed from one `shipway.yml`:
 
 ```
 examples/multi-service/
-├── api/server.js           # REST API (port 4001) — task CRUD
-├── worker/worker.js        # Background processor — polls + executes tasks
-├── dashboard/server.js     # Web dashboard (port 4000) — live stats + API proxy
-├── package.json
-└── README.md
+├── api/server.js           # REST API (port 4001)
+├── worker/worker.js        # Background task processor
+├── dashboard/server.js     # Web dashboard (port 4000)
+└── shipway.yml
 ```
 
-- **Zero dependencies** — pure Node.js with native `http`, `fs`, `fetch`
-- **File-backed persistence** — tasks stored in `data/tasks.json`
-- **Simulated task types** — email, report, thumbnail, webhook (with random failures)
-- **Dark-mode dashboard** — glassmorphism UI with auto-refresh
+Zero dependencies, file-backed persistence, dark-mode dashboard with auto-refresh.
 
 ```bash
-# Run locally
 cd examples/multi-service
-node api/server.js &
-node worker/worker.js &
-node dashboard/server.js
+node api/server.js & node worker/worker.js & node dashboard/server.js
 # → http://localhost:4000
 ```
 
@@ -773,7 +641,6 @@ node dashboard/server.js
 | `npm run dev` | Run CLI via tsx (no build step) |
 | `npm test` | Run all tests |
 | `npm run test:watch` | Watch mode |
-| `npm run test:coverage` | Coverage report |
 | `npm run lint` | Biome check |
 | `npm run format` | Biome format |
 | `npm run typecheck` | `tsc --noEmit` |
@@ -786,7 +653,7 @@ node dashboard/server.js
 |--------|-----------|
 | **TypeScript** (strict, ES2022, NodeNext) | Type safety, modern JS, ESM |
 | **Node.js 20+** | LTS, native fetch, AbortSignal.timeout |
-| **tsc** (no bundler) | Ships readable JS, no bundler complexity |
+| **tsc** (no bundler) | Ships readable JS |
 | **Vitest** | Fast, native TS, ESM-friendly |
 | **yaml** (eemeli/yaml) | YAML 1.2, good error positions |
 | **zod** | Config validation with type inference |
@@ -798,10 +665,10 @@ node dashboard/server.js
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ```bash
-git clone https://github.com/berna/shipway
+git clone https://github.com/pinecall/shipway
 cd shipway
 npm install
 npm run dev -- help     # run without building
