@@ -75,6 +75,12 @@ export class Pm2Manager implements ProcessManager {
     if (!opts.follow) args.push('--nostream');
     if (opts.lines) args.push('--lines', String(opts.lines));
 
+    // Follow mode: stream directly to terminal via inherited stdio
+    if (opts.follow) {
+      await ssh.exec(args.join(' '), { allowFail: true });
+      return '';
+    }
+
     const result = await ssh.execSilent(args.join(' '), { allowFail: true });
 
     if (opts.grep) {
