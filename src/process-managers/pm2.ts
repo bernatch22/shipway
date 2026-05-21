@@ -74,6 +74,7 @@ export class Pm2Manager implements ProcessManager {
     const args = ['pm2', 'logs', name];
     if (!opts.follow) args.push('--nostream');
     if (opts.lines) args.push('--lines', String(opts.lines));
+    if (opts.follow) args.push('--raw');
 
     // Follow mode: stream directly to terminal via inherited stdio
     if (opts.follow) {
