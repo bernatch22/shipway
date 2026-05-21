@@ -76,9 +76,12 @@ export class Pm2Manager implements ProcessManager {
     if (opts.lines) args.push('--lines', String(opts.lines));
     if (opts.follow) args.push('--raw');
 
-    // Follow mode: stream directly to terminal via inherited stdio
+    // Follow mode: stream directly to terminal
+    // stdbuf -oL forces line-buffered stdout on the remote side,
+    // preventing SSH from block-buffering the output (~4KB chunks)
     if (opts.follow) {
-      await ssh.exec(args.join(' '), { allowFail: true });
+      const cmd = `stdbuf -oL ${args.join(' ')}`;
+      await ssh.exec(cmd, { allowFail: true });
       return '';
     }
 
