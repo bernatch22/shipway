@@ -1,0 +1,19 @@
+name: taskforge
+host:
+  ssh: berna@34.123.241.2
+  key: ~/.ssh/google_compute_engine
+
+services:
+  api:
+    sync: . → ~/taskforge
+    start: node api/server.js
+    port: 4001
+
+  worker:
+    sync: . → ~/taskforge
+    start: node worker/worker.js
+
+  dashboard:
+    sync: . → ~/taskforge
+    start: PORT=4000 node dashboard/server.js
+    port: 4000

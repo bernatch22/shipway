@@ -1,0 +1,9 @@
+name: blossom-landing
+url: https://blossom.pe
+host: berna@34.123.241.2
+build: npx react-router build
+sync:
+  - { local: ./build, remote: ~/blossom-landing/build, checksum: true }
+  - { local: [./public, ./package.json, ./package-lock.json], remote: ~/blossom-landing, delete: false }
+postSync: npm install --omit=dev --no-audit --no-fund
+port: 3000

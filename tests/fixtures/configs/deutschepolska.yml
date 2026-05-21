@@ -1,0 +1,11 @@
+name: deutschepolska
+host: berna@34.123.241.2
+build: npm run build && cp server.mjs package.json package-lock.json dist/
+sync:
+  local: ./dist
+  remote: /home/berna/deutschepolska
+  exclude:
+    - data
+postSync: cd /home/berna/deutschepolska && npm install --omit=dev
+start: node server.mjs
+port: 5050
