@@ -7,6 +7,8 @@ export interface SSHExecOptions {
   silent?: boolean;
   allowFail?: boolean;
   timeoutMs?: number;
+  /** Force pseudo-TTY (-tt) for real-time streaming. Requires key-based auth. */
+  tty?: boolean;
 }
 
 /**
@@ -23,8 +25,11 @@ export class SSHClient {
    * Execute a command on the remote host.
    */
   async exec(command: string, options: SSHExecOptions = {}): Promise<ExecResult> {
-    const { silent = false, allowFail = false, timeoutMs } = options;
-    const args = [...buildSshArgs(this.keyPath), this.server, command];
+    const { silent = false, allowFail = false, timeoutMs, tty = false } = options;
+    const sshArgs = buildSshArgs(this.keyPath);
+    // -tt forces PTY even without a local terminal → line-buffered output
+    if (tty) sshArgs.push('-tt');
+    const args = [...sshArgs, this.server, command];
 
     return new Promise<ExecResult>((resolve, reject) => {
       const signal = timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined;

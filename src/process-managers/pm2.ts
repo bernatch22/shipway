@@ -76,9 +76,9 @@ export class Pm2Manager implements ProcessManager {
     if (opts.lines) args.push('--lines', String(opts.lines));
     if (opts.follow) args.push('--raw');
 
-    // Follow mode: stream directly to terminal via inherited stdio
+    // Follow mode: stream with forced PTY for real-time output (no block buffering)
     if (opts.follow) {
-      await ssh.exec(args.join(' '), { allowFail: true });
+      await ssh.exec(args.join(' '), { allowFail: true, tty: true });
       return '';
     }
 
