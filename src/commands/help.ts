@@ -18,7 +18,6 @@ ${yellow('Usage:')}
 
 ${yellow('Deploy:')}
   ${green('deploy')}     Build → sync → restart → health check ${dim('(default)')}
-  ${green('diff')}       Preview what would be synced ${dim('(rsync dry-run)')}
 
 ${yellow('Operations:')}
   ${green('status')}     Show service status + health check
@@ -36,15 +35,12 @@ ${yellow('Project Management:')}
   ${green('ls')}         List all registered projects
 
 ${yellow('Advanced:')}
-  ${green('debug')}      Open SSH-tunneled debugger ${dim('(Node, Python, Ruby)')}
-  ${green('tunnel')}     Generic SSH port forwarding
-  ${green('mcp')}        Start MCP server for AI agents
   ${green('migrate')}    Convert shipit.json → shipway.yml
-  ${green('doctor')}     Check system dependencies
   ${green('help')}       Show this help
 
 ${yellow('Flags:')}
   ${green('--dry-run, -n')}  Preview commands without executing
+  ${green('--env <name>')}   Use a specific environment
   ${green('--json')}         JSON output for CI
   ${green('--quiet')}        Minimal output
   ${green('--version, -v')}  Show version
@@ -59,7 +55,7 @@ ${yellow('Config:')} ${dim('shipway.yml')}
   ${dim('start')}      Start command (auto-creates pm2 config)
   ${dim('port')}       Port number (auto-creates health check)
 
-${dim('Docs: https://github.com/berna/shipway')}
+${dim('Docs: https://github.com/pinecall/shipway')}
 `;
     ctx.logger.raw(text);
     return ExitCode.OK;
