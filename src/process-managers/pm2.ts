@@ -76,14 +76,9 @@ export class Pm2Manager implements ProcessManager {
     if (opts.lines) args.push('--lines', String(opts.lines));
     if (opts.follow) args.push('--raw');
 
-    // Follow mode: bypass pm2 entirely and tail the log files directly.
-    // pm2 logs is a Node.js process with internal buffering that stdbuf can't fix.
-    // tail -f is inherently unbuffered — zero lag.
+    // Follow mode: stream directly to terminal via inherited stdio
     if (opts.follow) {
-      const outLog = `~/.pm2/logs/${name}-out.log`;
-      const errLog = `~/.pm2/logs/${name}-error.log`;
-      const cmd = `tail -f ${outLog} ${errLog}`;
-      await ssh.exec(cmd, { allowFail: true });
+      await ssh.exec(args.join(' '), { allowFail: true });
       return '';
     }
 
