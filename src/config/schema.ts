@@ -10,6 +10,16 @@ export const SyncEntrySchema = z.object({
   checksum: z.boolean().optional(),
 });
 
+// ── Env file (for `shipway env` pull/push) ────────────────
+
+export const EnvFileSchema = z.union([
+  z.string(), // shorthand: remote path; local defaults to ./.env
+  z.object({
+    remote: z.string().optional(),
+    local: z.string().optional(),
+  }),
+]);
+
 // ── Host shapes ───────────────────────────────────────────
 
 const HostSshSchema = z.object({
@@ -78,6 +88,7 @@ export const EnvironmentSchema = z.object({
   restart: RestartSchema.optional(),
   port: z.number().optional(),
   health: HealthSchema.optional(),
+  env: EnvFileSchema.optional(),
   services: z.record(z.string(), ServiceSchema).optional(),
   exclude: z.array(z.string()).optional(),
 });
@@ -87,7 +98,7 @@ export const EnvironmentSchema = z.object({
 export const ShipwayConfigSchema = z.object({
   name: z.string().min(1),
   url: z.string().url().optional(),
-  host: HostSchema.optional(),         // optional at parse-time; required after env merge
+  host: HostSchema.optional(), // optional at parse-time; required after env merge
   remoteDir: z.string().optional(),
   build: z.string().optional(),
   sync: SyncFlexSchema.optional(),
@@ -96,6 +107,7 @@ export const ShipwayConfigSchema = z.object({
   restart: RestartSchema.optional(),
   port: z.number().optional(),
   health: HealthSchema.optional(),
+  env: EnvFileSchema.optional(),
   services: z.record(z.string(), ServiceSchema).optional(),
   exclude: z.array(z.string()).optional(),
   environments: z.record(z.string(), EnvironmentSchema).optional(),
@@ -103,6 +115,7 @@ export const ShipwayConfigSchema = z.object({
 
 // ── Inferred types ────────────────────────────────────────
 
+export type EnvFileConfig = z.infer<typeof EnvFileSchema>;
 export type SyncEntry = z.infer<typeof SyncEntrySchema>;
 export type HostConfig = z.infer<typeof HostSchema>;
 export type HostObject = z.infer<typeof HostObjectSchema>;

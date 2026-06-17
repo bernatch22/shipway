@@ -1,4 +1,4 @@
-import type { SyncEntry, HostConfig } from './schema.js';
+import type { HostConfig, SyncEntry } from './schema.js';
 
 /**
  * Resolved host info after processing all host config shapes.
@@ -31,8 +31,17 @@ export interface NormalizedConfig {
   start?: string;
   restart: NormalizedRestart;
   health?: NormalizedHealth;
+  env?: NormalizedEnvFile;
   exclude: string[];
   services?: Record<string, NormalizedService>;
+}
+
+/** Resolved env-file locations for `shipway env` pull/push. */
+export interface NormalizedEnvFile {
+  /** Remote path to the env file (e.g. ~/app/.env). */
+  remote: string;
+  /** Local path the env file syncs to/from (default ./.env). */
+  local: string;
 }
 
 export interface NormalizedHealth {

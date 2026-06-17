@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
-import { buildSshArgs } from './args.js';
 import { SSHError } from '../errors/index.js';
 import type { ExecResult } from '../utils/exec.js';
+import { buildSshArgs } from './args.js';
 
 export interface SSHExecOptions {
   silent?: boolean;
@@ -62,13 +62,7 @@ export class SSHClient {
       child.on('close', (code) => {
         const exitCode = code ?? 1;
         if (exitCode !== 0 && !allowFail) {
-          reject(
-            new SSHError(
-              `Remote command failed on ${this.server}`,
-              command,
-              exitCode,
-            ),
-          );
+          reject(new SSHError(`Remote command failed on ${this.server}`, command, exitCode));
           return;
         }
         resolve({ stdout: stdout.trimEnd(), stderr: stderr.trimEnd(), exitCode });
@@ -82,6 +76,98 @@ export class SSHClient {
   async execSilent(command: string, options: SSHExecOptions = {}): Promise<string> {
     const result = await this.exec(command, { ...options, silent: true });
     return result.stdout;
+  }
+
+  /**
+   * Execute a remote command, piping `input` to its stdin. stdout/stderr are
+   * captured. Used to stream file contents to the remote (see writeRemoteFile).
+   */
+  async execWithInput(
+    command: string,
+    input: string | Buffer,
+    options: SSHExecOptions = {},
+  ): Promise<ExecResult> {
+    const { allowFail = false, timeoutMs } = options;
+    const args = [...buildSshArgs(this.keyPath), this.server, command];
+
+    return new Promise<ExecResult>((resolve, reject) => {
+      const signal = timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined;
+      const child = spawn('ssh', args, { stdio: ['pipe', 'pipe', 'pipe'], signal });
+
+      let stdout = '';
+      let stderr = '';
+      child.stdout?.on('data', (d: Buffer) => {
+        stdout += d.toString();
+      });
+      child.stderr?.on('data', (d: Buffer) => {
+        stderr += d.toString();
+      });
+
+      child.on('error', (err) => {
+        if (allowFail) {
+          resolve({ stdout: '', stderr: err.message, exitCode: 1 });
+          return;
+        }
+        reject(new SSHError(`SSH connection failed: ${err.message}`, command, undefined, err));
+      });
+      child.on('close', (code) => {
+        const exitCode = code ?? 1;
+        if (exitCode !== 0 && !allowFail) {
+          reject(new SSHError(`Remote command failed on ${this.server}`, command, exitCode));
+          return;
+        }
+        resolve({ stdout: stdout.trimEnd(), stderr: stderr.trimEnd(), exitCode });
+      });
+
+      child.stdin?.write(input);
+      child.stdin?.end();
+    });
+  }
+
+  /**
+   * Read a remote file's raw bytes. Returns null if the file does not exist.
+   * Transferred as base64 so binary/whitespace is preserved exactly.
+   */
+  async readRemoteFile(remotePath: string): Promise<Buffer | null> {
+    const NOFILE = '__SHIPWAY_NOFILE__';
+    const res = await this.exec(
+      `if [ -f ${remotePath} ]; then base64 ${remotePath}; else echo ${NOFILE}; fi`,
+      { silent: true, allowFail: true },
+    );
+    if (res.exitCode !== 0) {
+      throw new SSHError(
+        `Could not read remote file ${remotePath}`,
+        'readRemoteFile',
+        res.exitCode,
+      );
+    }
+    const out = res.stdout.trim();
+    if (out === NOFILE) return null;
+    return Buffer.from(out, 'base64');
+  }
+
+  /**
+   * Write bytes to a remote file atomically (write temp → mv). When `backup` is
+   * set, the existing file is copied to `<path>.bak` first.
+   */
+  async writeRemoteFile(
+    remotePath: string,
+    content: Buffer,
+    opts: { backup?: boolean } = {},
+  ): Promise<void> {
+    const tmp = `${remotePath}.shipway-tmp`;
+    const backupCmd = opts.backup
+      ? `( [ -f ${remotePath} ] && cp ${remotePath} ${remotePath}.bak || true ); `
+      : '';
+    const cmd = `${backupCmd}base64 -d > ${tmp} && mv ${tmp} ${remotePath}`;
+    const res = await this.execWithInput(cmd, content.toString('base64'), { allowFail: true });
+    if (res.exitCode !== 0) {
+      throw new SSHError(
+        `Could not write remote file ${remotePath}: ${res.stderr}`.trim(),
+        'writeRemoteFile',
+        res.exitCode,
+      );
+    }
   }
 
   /**
@@ -108,7 +194,8 @@ export class SSHClient {
   ): { close: () => void; process: ReturnType<typeof spawn> } {
     const args = [
       ...buildSshArgs(this.keyPath),
-      '-L', `${localPort}:${remoteHost}:${remotePort}`,
+      '-L',
+      `${localPort}:${remoteHost}:${remotePort}`,
       '-N',
       this.server,
     ];

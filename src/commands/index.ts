@@ -1,18 +1,19 @@
-import type { Command } from './types.js';
 import deploy from './deploy.js';
-import status from './status.js';
-import logs from './logs.js';
-import ssh from './ssh.js';
+import env from './env.js';
 import exec from './exec.js';
-import restart from './restart.js';
-import stop from './stop.js';
-import start from './start.js';
-import open from './open.js';
+import help from './help.js';
 import link from './link.js';
-import unlink from './unlink.js';
+import logs from './logs.js';
 import ls from './ls.js';
 import migrate from './migrate.js';
-import help from './help.js';
+import open from './open.js';
+import restart from './restart.js';
+import ssh from './ssh.js';
+import start from './start.js';
+import status from './status.js';
+import stop from './stop.js';
+import type { Command } from './types.js';
+import unlink from './unlink.js';
 
 /**
  * Registry of all CLI commands.
@@ -25,6 +26,7 @@ export const commands: Record<string, Command> = {
   logs,
   ssh,
   exec,
+  env,
   restart,
   stop,
   start,

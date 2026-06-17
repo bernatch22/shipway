@@ -1,8 +1,8 @@
-import { bold, cyan, dim, green, yellow } from '../logging/colors.js';
 import { ExitCode } from '../errors/index.js';
+import { bold, cyan, dim, green, yellow } from '../logging/colors.js';
 import type { Command, CommandContext } from './types.js';
 
-const VERSION = '0.0.1';
+const VERSION = '0.1.0';
 
 class HelpCommand implements Command {
   readonly name = 'help';
@@ -26,6 +26,7 @@ ${yellow('Operations:')}
   ${green('stop')}       Stop the remote service
   ${green('start')}      Start the remote service
   ${green('exec')}       Run a command on the remote host
+  ${green('env')}        Pull/push/diff the remote .env ${dim('(env pull | push --yes | diff)')}
   ${green('ssh')}        Open interactive SSH session
   ${green('open')}       Open the deployed URL in browser
 

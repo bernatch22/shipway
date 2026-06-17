@@ -1,5 +1,16 @@
-import type { ShipwayConfig, SyncEntry, HealthConfig, ServiceConfig } from './schema.js';
-import type { NormalizedConfig, NormalizedHealth, NormalizedService } from './types.js';
+import type {
+  EnvFileConfig,
+  HealthConfig,
+  ServiceConfig,
+  ShipwayConfig,
+  SyncEntry,
+} from './schema.js';
+import type {
+  NormalizedConfig,
+  NormalizedEnvFile,
+  NormalizedHealth,
+  NormalizedService,
+} from './types.js';
 
 /** Default excludes applied to every sync entry unless overridden. */
 const DEFAULT_EXCLUDES = ['.DS_Store', '._*', '.git', 'node_modules'];
@@ -14,6 +25,7 @@ export function normalize(raw: ShipwayConfig): NormalizedConfig {
   const restart = normalizeRestart(raw.restart, raw.start, raw.name, undefined, remoteDir);
   const health = normalizeHealth(raw.health, raw.port);
   const postSync = normalizePostSync(raw.postSync, remoteDir);
+  const env = normalizeEnvFile(raw.env, remoteDir);
 
   const result: NormalizedConfig = {
     name: raw.name,
@@ -26,6 +38,7 @@ export function normalize(raw: ShipwayConfig): NormalizedConfig {
     start: raw.start,
     restart,
     health,
+    env,
     exclude: raw.exclude ?? DEFAULT_EXCLUDES,
   };
 
@@ -37,6 +50,28 @@ export function normalize(raw: ShipwayConfig): NormalizedConfig {
   }
 
   return result;
+}
+
+/**
+ * Resolve env-file locations for `shipway env`. The remote path defaults to
+ * `<remoteDir>/.env`; the local path defaults to `./.env`. Returns undefined
+ * only when neither a remote path nor a remoteDir is available.
+ */
+function normalizeEnvFile(
+  env: EnvFileConfig | undefined,
+  remoteDir: string | undefined,
+): NormalizedEnvFile | undefined {
+  const defaultRemote = remoteDir ? `${remoteDir.replace(/\/+$/, '')}/.env` : undefined;
+
+  if (env === undefined) {
+    return defaultRemote ? { remote: defaultRemote, local: '.env' } : undefined;
+  }
+  if (typeof env === 'string') {
+    return { remote: env, local: '.env' };
+  }
+  const remote = env.remote ?? defaultRemote;
+  if (!remote) return undefined;
+  return { remote, local: env.local ?? '.env' };
 }
 
 /**
@@ -210,7 +245,13 @@ function normalizeService(
     sync: normalizeSyncEntries(svc.sync ?? root.sync, root.exclude, remoteDir),
     postSync: normalizePostSync(svc.postSync ?? root.postSync, remoteDir),
     start: svc.start ?? root.start,
-    restart: normalizeRestart(svc.restart, svc.start ?? root.start, root.name, serviceName, remoteDir),
+    restart: normalizeRestart(
+      svc.restart,
+      svc.start ?? root.start,
+      root.name,
+      serviceName,
+      remoteDir,
+    ),
     health: normalizeHealth(svc.health, svc.port ?? root.port),
     cwd: svc.cwd,
   };

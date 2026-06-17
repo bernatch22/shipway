@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 
 import { commands } from './commands/index.js';
-import { loadConfigFromDir } from './config/parser.js';
-import { HostResolver } from './host/resolver.js';
-import { SSHClient } from './ssh/client.js';
-import { Logger } from './logging/logger.js';
-import { ShipwayError, ExitCode } from './errors/index.js';
-import { parseArgv } from './utils/argv.js';
 import type { CommandContext } from './commands/types.js';
+import { loadConfigFromDir } from './config/parser.js';
 import type { NormalizedConfig, ResolvedHost } from './config/types.js';
+import { ExitCode, ShipwayError } from './errors/index.js';
+import { HostResolver } from './host/resolver.js';
+import { Logger } from './logging/logger.js';
 import type { OutputMode } from './logging/logger.js';
+import { SSHClient } from './ssh/client.js';
+import { parseArgv } from './utils/argv.js';
 
-const VERSION = '0.0.1';
+const VERSION = '0.1.0';
 
 async function main(): Promise<number> {
   const parsed = parseArgv(process.argv);
@@ -45,7 +45,15 @@ async function main(): Promise<number> {
   const cwd = process.cwd();
   let config: NormalizedConfig | null = null;
 
-  const commandsWithoutConfig = new Set(['help', 'ls', 'link', 'unlink', 'doctor', 'migrate', 'mcp']);
+  const commandsWithoutConfig = new Set([
+    'help',
+    'ls',
+    'link',
+    'unlink',
+    'doctor',
+    'migrate',
+    'mcp',
+  ]);
   const envFlag = typeof parsed.flags.env === 'string' ? parsed.flags.env : undefined;
 
   if (!commandsWithoutConfig.has(commandName)) {

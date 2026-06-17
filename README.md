@@ -382,6 +382,43 @@ shipway logs --env staging       # tail staging logs
 | `shipway ssh` | Open interactive SSH session |
 | `shipway open` | Open the deployed URL in browser |
 
+### Env Files
+
+`.env` is usually **excluded from sync** (prod owns its secrets — see [Sync Formats](#sync-formats)),
+so deploys never touch it. `shipway env` is how you edit that remote `.env` safely.
+
+| Command | Description |
+|---------|-------------|
+| `shipway env` | Key-level diff of local vs remote `.env` (read-only, **values never printed**) |
+| `shipway env diff` | Same as above, explicit |
+| `shipway env pull` | Download the remote `.env` → local file (written `0600`) |
+| `shipway env pull --out /tmp/x.env` | Pull to a specific path (won't clobber an existing file without `--force`) |
+| `shipway env push --yes` | Upload the local `.env` → remote (backs up remote to `.env.bak`, writes atomically) |
+| `shipway env push /tmp/x.env --yes --restart` | Push a specific file, then `pm2 restart` the service |
+
+Without `--yes`, `push` is a **dry run** — it prints the diff and exits. The diff marks each key
+`+` add / `~` change / `-` remove (remove = present on remote, absent locally), **never the values**.
+
+The env-file location resolves from config (defaults to `<remoteDir>/.env` remote, `./.env` local):
+
+```yaml
+# shorthand — just the remote path
+env: ~/app/shared/.env
+
+# or explicit
+env:
+  remote: ~/app/.env
+  local: ./.env.production
+```
+
+Typical "edit a prod secret" flow:
+
+```bash
+shipway env pull --out /tmp/app.env   # download
+$EDITOR /tmp/app.env                   # edit
+shipway env push /tmp/app.env --yes --restart
+```
+
 ### Project Management
 
 | Command | Description |
