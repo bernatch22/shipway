@@ -95,7 +95,11 @@ class DeployCommand implements Command {
       const serviceConfig = this.buildServiceConfig(config, svc, name);
 
       try {
+        // BuildStep first so a service can build its own artifact (e.g. a UI bundle) — this is
+        // what lets `shipway deploy <service>` build+ship just that one. A service's build only
+        // runs if it defines one; the shared root build above still runs once for a full deploy.
         const pipeline = new DeployPipeline([
+          new BuildStep(),
           new SyncStep(),
           new PostSyncStep(),
           new RestartStep(),

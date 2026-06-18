@@ -3,6 +3,20 @@
 All notable changes to **shipway** are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow semver (pre-1.0, minor = features/notable docs).
 
+## [0.3.0] — 2026-06-18
+
+### Added
+- **Per-service `build`.** A service's own `build` now runs in its pipeline, so
+  `shipway deploy <service>` can **build + ship just that one service** — e.g. a UI-only deploy
+  (`shipway deploy ui`) that rebuilds the frontend without touching the API/workers. The shared
+  root `build` still runs once for a full deploy.
+
+### Changed
+- A service **without** its own `build` no longer inherits the root `build` (it used to, but the
+  per-service pipeline never ran it — so this was dead config). This prevents the root build from
+  re-running once per service now that per-service build is wired up. Define `build` on the service
+  that needs it; leave it off the others.
+
 ## [0.2.1] — 2026-06-18
 
 ### Fixed

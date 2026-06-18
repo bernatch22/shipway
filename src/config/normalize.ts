@@ -241,7 +241,11 @@ function normalizeService(
 ): NormalizedService {
   const remoteDir = root.remoteDir;
   return {
-    build: svc.build ?? root.build,
+    // Per-service build is the service's OWN build only — it must NOT inherit root.build, or every
+    // service would re-run the shared root build in its pipeline (double build). The root `build`
+    // still runs ONCE before all services (see deployMultiService); a service's own build runs in
+    // its per-service pipeline, so `shipway deploy <service>` can build just that one.
+    build: svc.build,
     sync: normalizeSyncEntries(svc.sync ?? root.sync, root.exclude, remoteDir),
     postSync: normalizePostSync(svc.postSync ?? root.postSync, remoteDir),
     start: svc.start ?? root.start,

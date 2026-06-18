@@ -1,0 +1,15 @@
+name: stack
+host: deploy@10.0.0.9
+remoteDir: ~/stack
+build: echo root-build
+sync: .
+
+services:
+  # has its OWN build → should be kept, runs in its own pipeline
+  ui:
+    build: npm run build
+    sync: { local: dist, remote: ~/stack/static }
+    restart: { method: none }
+  # no build → must NOT inherit root.build (else it would double-run the root build)
+  api:
+    restart: { method: systemd, name: stack-api }

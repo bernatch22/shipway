@@ -365,6 +365,32 @@ services:
 staging is a single process. The environment's `services:` replaces (doesn't deep-merge with) the root —
 so other environments keep using the simple single-service path untouched.
 
+#### 4. Deploy just ONE service — with its own build (e.g. a UI-only deploy)
+
+`shipway deploy <service>` deploys a single service, and **runs that service's own `build`** first. Give
+the service a `build` and you get a fast, isolated deploy that rebuilds + ships only its artifact — without
+touching the other units:
+
+```yaml
+services:
+  ui:                                  # `shipway deploy ui` = rebuild the frontend + ship it, nothing else
+    build: cd ../web && npm run build && rsync -a --delete dist/ ./static/
+    sync: { local: static, remote: ~/app/static }
+    restart: { method: none }          # e.g. a static bundle served by an already-running API → no restart
+  api:
+    restart: { method: systemd, name: app-api }
+```
+
+```bash
+shipway deploy ui          # build the UI + sync static/ ONLY — api/workers untouched
+shipway deploy             # full deploy: every service (each runs its own build if it has one)
+```
+
+> The **shared root `build`** (top-level / env-level) runs ONCE before all services on a full deploy. A
+> **service's own `build`** runs in that service's pipeline — including when you target it with
+> `shipway deploy <service>`. A service without its own `build` does **not** inherit the root one (so the
+> root build never re-runs per service). Put the build where the artifact belongs.
+
 #### Worked example — "Beacon", a self-hosted analytics stack
 
 A Python metrics API + a separate gateway unit (restart-only) + a Node event **ingestor** that lives in a

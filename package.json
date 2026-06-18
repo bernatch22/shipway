@@ -1,6 +1,6 @@
 {
   "name": "shipway",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Deploy Node.js, Python, and Ruby apps over SSH. Seven lines of YAML. No Docker.",
   "type": "module",
   "bin": {

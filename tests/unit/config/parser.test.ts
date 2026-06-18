@@ -136,4 +136,18 @@ describe('Config Parser', () => {
       expect(config.remoteDir).toBe('~/taskforge');
     });
   });
+
+  describe('multi-service-build.yml — per-service build', () => {
+    it("keeps a service's own build", async () => {
+      const config = await loadConfig(resolve(FIXTURES, 'multi-service-build.yml'));
+      expect(config.services?.ui?.build).toBe('npm run build');
+    });
+
+    it('does NOT inherit root.build into a service without its own build', async () => {
+      // Else adding BuildStep to the per-service pipeline would re-run the root build per service.
+      const config = await loadConfig(resolve(FIXTURES, 'multi-service-build.yml'));
+      expect(config.build).toBe('echo root-build'); // root build still present (runs once)
+      expect(config.services?.api?.build).toBeUndefined();
+    });
+  });
 });
