@@ -3,6 +3,13 @@
 All notable changes to **shipway** are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow semver (pre-1.0, minor = features/notable docs).
 
+## [0.4.0] — 2026-06-18
+
+### Added
+- **`defaultEnv`** top-level config key. When set, `shipway deploy` (and `logs`/`status`/`restart`) with
+  no `--env` uses that environment instead of the bare base config. An explicit `--env` still wins. Lets a
+  project whose common target is an environment (e.g. `prod`) drop the repetitive `--env` flag.
+
 ## [0.3.0] — 2026-06-18
 
 ### Added

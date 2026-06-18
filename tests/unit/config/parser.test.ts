@@ -150,4 +150,17 @@ describe('Config Parser', () => {
       expect(config.services?.api?.build).toBeUndefined();
     });
   });
+
+  describe('default-env.yml — defaultEnv', () => {
+    it('uses defaultEnv when no --env is passed', async () => {
+      const config = await loadConfig(resolve(FIXTURES, 'default-env.yml'));
+      expect(config.host).toBe('deploy@prod-host');
+      expect(config.remoteDir).toBe('~/app-prod');
+    });
+
+    it('an explicit --env overrides defaultEnv', async () => {
+      const config = await loadConfig(resolve(FIXTURES, 'default-env.yml'), 'staging');
+      expect(config.host).toBe('deploy@staging-host');
+    });
+  });
 });

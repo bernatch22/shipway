@@ -1,0 +1,11 @@
+name: app
+host: deploy@base-host
+remoteDir: ~/app
+defaultEnv: prod
+
+environments:
+  staging:
+    host: deploy@staging-host
+  prod:
+    host: deploy@prod-host
+    remoteDir: ~/app-prod

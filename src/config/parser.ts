@@ -60,7 +60,9 @@ export async function loadConfig(
     throw new ConfigError('root', `Validation failed:\n${issues.join('\n')}`);
   }
 
-  const merged = env ? mergeEnvironment(result.data, env) : result.data;
+  // An explicit --env wins; otherwise fall back to the config's `defaultEnv` (if any).
+  const effectiveEnv = env ?? result.data.defaultEnv;
+  const merged = effectiveEnv ? mergeEnvironment(result.data, effectiveEnv) : result.data;
 
   // Validate host is present after merge
   if (!merged.host) {

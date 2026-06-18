@@ -111,6 +111,9 @@ export const ShipwayConfigSchema = z.object({
   services: z.record(z.string(), ServiceSchema).optional(),
   exclude: z.array(z.string()).optional(),
   environments: z.record(z.string(), EnvironmentSchema).optional(),
+  // When set, `shipway deploy` (no --env) uses this environment instead of the base config.
+  // An explicit --env always wins. Useful when the common target is an environment (e.g. prod).
+  defaultEnv: z.string().optional(),
 });
 
 // ── Inferred types ────────────────────────────────────────

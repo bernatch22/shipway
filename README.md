@@ -495,6 +495,30 @@ shipway logs --env staging       # tail staging logs
 
 > Without `--env`, the base config is used directly.
 
+#### Default environment (`defaultEnv`) — skip typing `--env`
+
+If the target you deploy to most often is an environment (e.g. `prod`), set **`defaultEnv`** so a plain
+`shipway deploy` uses it. An explicit `--env` always wins.
+
+```yaml
+name: my-app
+defaultEnv: prod                 # `shipway deploy` (no flag) ⇒ prod
+environments:
+  staging:
+    host: deploy@staging.example.com
+  prod:
+    host: deploy@prod.example.com
+```
+
+```bash
+shipway deploy                   # → prod  (via defaultEnv)
+shipway deploy ui                # → prod, just the `ui` service
+shipway deploy --env staging     # → staging (explicit --env overrides defaultEnv)
+```
+
+> The base config still acts as the shared defaults every environment inherits from. With `defaultEnv`
+> set, plain `shipway deploy` no longer targets the bare base — point `defaultEnv` at the env you mean.
+
 ---
 
 ## Commands
