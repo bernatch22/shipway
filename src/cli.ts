@@ -10,8 +10,12 @@ import { Logger } from './logging/logger.js';
 import type { OutputMode } from './logging/logger.js';
 import { SSHClient } from './ssh/client.js';
 import { parseArgv } from './utils/argv.js';
+import { createRequire } from 'node:module';
 
-const VERSION = '0.1.0';
+// Read the version from package.json so `--version` never drifts from the published version
+// (it used to be a hardcoded constant that bumps forgot to update).
+const require = createRequire(import.meta.url);
+const VERSION: string = (require('../package.json') as { version: string }).version;
 
 async function main(): Promise<number> {
   const parsed = parseArgv(process.argv);

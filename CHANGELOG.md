@@ -3,6 +3,12 @@
 All notable changes to **shipway** are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow semver (pre-1.0, minor = features/notable docs).
 
+## [0.2.1] — 2026-06-18
+
+### Fixed
+- `shipway --version` now reads the real version from `package.json` instead of a hardcoded constant
+  that version bumps forgot to update (0.2.0 shipped reporting `0.1.0`).
+
 ## [0.2.0] — 2026-06-18
 
 ### Documentation
