@@ -25,6 +25,7 @@ Shipway is a CLI for shipping Node.js, Python, and Ruby apps to a VPS without Do
   - [remoteDir](#remotedir)
   - [Sync Formats](#sync-formats)
   - [Multi-Service](#multi-service)
+  - [Advanced: heterogeneous stacks, sidecars & restart-only services](#advanced-heterogeneous-stacks-sidecars--restart-only-services)
   - [Environments](#environments)
 - [Commands](#commands)
   - [Deploy](#deploy)
@@ -306,6 +307,120 @@ shipway deploy api          # just the API
 shipway logs worker         # logs for one service
 shipway status              # status of all services
 ```
+
+### Advanced: heterogeneous stacks, sidecars & restart-only services
+
+`services:` isn't only for "N copies of the same Node app". Because **every service has its own
+`sync`, `build`, `postSync`, `restart`, `cwd` and `health`** (each falling back to the root when
+omitted), one config can ship a **mixed-runtime stack** in a single `shipway deploy`: a Python app,
+a Node sidecar that lives in a *different* directory, and a unit that should only be **restarted**
+(not re-synced). Three patterns worth knowing:
+
+#### 1. Restart-only service (share code, bounce a second unit)
+
+Two units often run from the **same** synced code (e.g. an API process and a separate gateway/worker
+that imports it). You want the code synced **once**, but **both** units restarted so they pick up the
+change. Give the second service an **empty `sync`** and an **empty `postSync`** so it does nothing but
+restart:
+
+```yaml
+services:
+  api:                      # syncs the code + installs deps + restarts
+    sync: . → ~/app
+    postSync: uv sync --no-dev
+    restart: { method: systemd, name: app-api }
+  gateway:                  # SAME code (already on the box) — just bounce the unit
+    sync: []                # ← empty list: the Sync step is skipped entirely
+    postSync: ''            # ← empty string: the Post-sync step is skipped
+    restart: { method: systemd, name: app-gateway }
+```
+
+> ⚠️ You **must** set `sync: []` and `postSync: ''` explicitly. A service that *omits* them inherits
+> the root `sync`/`postSync`, so it would redundantly re-sync and re-run the install.
+
+#### 2. Out-of-tree sidecar (source outside `remoteDir`)
+
+A sidecar can live **outside** the main app directory — a sibling folder or the repo root — and sync to
+its own remote path. Use the object form of `sync` with an explicit `remote` (it bypasses `remoteDir`):
+
+```yaml
+services:
+  collector:
+    sync:
+      local: ../collector            # a sibling dir, outside this config's app folder
+      remote: ~/collector            # its own remote home (ignores remoteDir)
+      exclude: [node_modules, .git]
+    postSync: 'cd ~/collector && npm ci --omit=dev'   # ← see the gotcha below
+    restart: { method: systemd, name: app-collector }
+```
+
+> 🪤 **The `postSync` `cd` gotcha.** shipway prefixes `postSync` with `cd <remoteDir>` (the env's base
+> dir) unless your command *already* starts with `cd `. A sidecar whose work happens in a different
+> directory **must `cd` there itself** (`cd ~/collector && …`), otherwise the install runs in the wrong
+> place. When your command starts with `cd`, shipway leaves it untouched.
+
+#### 3. Multi-service for ONE environment only
+
+`services:` can live **inside an `environment`**. Common when only your prod box runs the full stack while
+staging is a single process. The environment's `services:` replaces (doesn't deep-merge with) the root —
+so other environments keep using the simple single-service path untouched.
+
+#### Worked example — "Beacon", a self-hosted analytics stack
+
+A Python metrics API + a separate gateway unit (restart-only) + a Node event **ingestor** that lives in a
+sibling repo folder. The frontend is built once locally and shipped inside the API's sync. Multi-service
+**only on `prod`**; `staging` stays a single process. (Full runnable config in
+[`examples/sidecar-stack/`](examples/sidecar-stack/).)
+
+```yaml
+name: beacon
+remoteDir: ~/beacon
+sync: .
+postSync: uv sync --no-dev
+exclude: [.git, .venv, __pycache__, node_modules, .env, "*.pyc"]
+
+environments:
+  # staging = one box, one process — plain single-service path
+  staging:
+    host: deploy@staging.beacon.io
+    start: uv run beacon serve --port 8000      # pm2-managed
+    port: 8000
+
+  # prod = three units on one box, built + shipped + restarted in one command
+  prod:
+    host:
+      ssh: deploy@beacon.io
+      key: ~/.ssh/beacon_prod
+    # runs ONCE locally before any service: build the dashboard into the API's static dir
+    build: cd ../beacon-web && npm ci && npm run build && rsync -a --delete dist/ ../beacon/static/
+    services:
+      api:                                       # 1) sync code (incl. built static/) + deps + restart
+        postSync: uv sync --no-dev               #    (sync + excludes inherited from root)
+        restart: { method: systemd, name: beacon-api }
+      gateway:                                    # 2) same code, just bounce the gateway unit
+        sync: []
+        postSync: ''
+        restart: { method: systemd, name: beacon-gateway }
+      ingestor:                                   # 3) Node sidecar from a sibling repo dir
+        sync:
+          local: ../beacon-ingestor
+          remote: ~/beacon-ingestor
+          exclude: [node_modules, .git, .env]
+        postSync: 'cd ~/beacon-ingestor && npm ci --omit=dev'
+        restart: { method: systemd, name: beacon-ingestor }
+```
+
+```bash
+shipway deploy --env prod           # build dashboard → sync api → restart api → restart gateway → sync+install+restart ingestor
+shipway deploy --env prod --dry-run # print the exact per-service plan without touching the box
+shipway logs ingestor --env prod    # tail just the sidecar
+shipway restart gateway --env prod  # bounce one unit
+```
+
+> The systemd **units must be pre-created on the box** — shipway's systemd adapter start/restarts, it does
+> not install units (see [Process Managers](#process-managers)). Each service's env (e.g. an
+> `EnvironmentFile=`) lives in its unit file. Services deploy **in declaration order**, stopping at the
+> first failure — list the code-syncing service before the ones that only restart.
 
 ### Environments
 
@@ -667,6 +782,22 @@ cd examples/multi-service
 node api/server.js & node worker/worker.js & node dashboard/server.js
 # → http://localhost:4000
 ```
+
+### Beacon (heterogeneous stack — sidecar + restart-only + per-env multi-service)
+
+A config-only reference for the harder real-world shape: a **Python** API, a **restart-only**
+gateway unit sharing the same code, and a **Node sidecar** (`ingestor`) that lives in a *sibling*
+repo folder — all shipped by one `shipway deploy --env prod`, with `staging` left as a single
+process. Demonstrates `sync: []` / `postSync: ''` (restart-only), out-of-tree `sync.local: ../…`,
+the `cd` postSync gotcha, a once-per-deploy `build`, and `services:` scoped to one environment.
+
+```
+examples/sidecar-stack/
+└── shipway.yml + README.md     # annotated config (the patterns, not runnable services)
+```
+
+See [Advanced: heterogeneous stacks](#advanced-heterogeneous-stacks-sidecars--restart-only-services)
+for the full walk-through.
 
 ---
 

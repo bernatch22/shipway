@@ -1,0 +1,69 @@
+# Beacon — a heterogeneous, multi-service deploy on ONE box.
+#
+# This is the "hard" real-world shape that the simple multi-service example (taskforge) doesn't show:
+#   • a Python app (the API)                                   → sync + uv sync + restart
+#   • a SECOND unit running the SAME code (the gateway)        → restart-only (no re-sync)
+#   • a Node SIDECAR living in a SIBLING repo folder           → its own source + npm + restart
+#   • a frontend built ONCE locally and shipped with the API   → the `build` hook
+#   • all of the above ONLY on prod; staging is a single proc  → services: inside one environment
+#
+# One `shipway deploy --env prod` does the whole thing. See ../../README.md
+# (Advanced: heterogeneous stacks, sidecars & restart-only services) for the walk-through.
+
+name: beacon
+remoteDir: ~/beacon
+sync: .
+postSync: uv sync --no-dev
+exclude: [.git, .venv, __pycache__, node_modules, .env, "*.pyc"]
+
+environments:
+  # ── staging: one box, one process. No `services:` → plain single-service path. ──────────────
+  staging:
+    host: deploy@staging.beacon.io
+    start: uv run beacon serve --port 8000        # pm2-managed (start ⇒ pm2)
+    port: 8000
+    url: https://staging.beacon.io
+
+  # ── prod: three pre-created systemd units on one box, shipped + restarted in one command. ───
+  prod:
+    host:
+      ssh: deploy@beacon.io
+      key: ~/.ssh/beacon_prod
+    url: https://beacon.io
+
+    # Runs ONCE, locally, before any service: build the dashboard and stage it into the API's
+    # static dir so it ships inside the `api` service's sync below. (cwd = this file's dir.)
+    build: cd ../beacon-web && npm ci && npm run build && rsync -a --delete dist/ ../beacon/static/
+
+    services:
+      # 1) The Python API. Inherits root `sync: .` + `exclude`; runs uv sync; restarts its unit.
+      api:
+        postSync: uv sync --no-dev
+        restart: { method: systemd, name: beacon-api }
+        # health is optional; the API exposes :8000 internally — probe via your LB, not here.
+
+      # 2) RESTART-ONLY. A separate gunicorn/gateway unit serving the SAME code the API just
+      #    synced. Empty sync + empty postSync ⇒ shipway only restarts the unit.
+      #    (Omitting them would inherit the root sync/postSync and redundantly re-sync.)
+      gateway:
+        sync: []
+        postSync: ''
+        restart: { method: systemd, name: beacon-gateway }
+
+      # 3) OUT-OF-TREE SIDECAR. A Node event ingestor that lives in a sibling repo folder
+      #    (../beacon-ingestor), syncs to its own remote home, installs its own deps, restarts.
+      #    NOTE the explicit `cd ~/beacon-ingestor &&`: shipway prefixes postSync with
+      #    `cd <remoteDir>` (= ~/beacon) unless the command already starts with `cd`, so without
+      #    it the `npm ci` would run in ~/beacon instead of ~/beacon-ingestor.
+      ingestor:
+        sync:
+          local: ../beacon-ingestor
+          remote: ~/beacon-ingestor
+          exclude: [node_modules, .git, .env]
+        postSync: 'cd ~/beacon-ingestor && npm ci --omit=dev'
+        restart: { method: systemd, name: beacon-ingestor }
+
+# Services deploy in DECLARATION ORDER, stopping at the first failure — list the code-syncing
+# service (api) before the ones that only restart (gateway). The systemd units must be
+# pre-created on the box (shipway start/restarts them; it does not install unit files). Each
+# unit owns its own env via `EnvironmentFile=` in the unit, e.g. EnvironmentFile=/home/deploy/beacon/.env.
