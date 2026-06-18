@@ -174,10 +174,11 @@ exclude:                         # global rsync excludes (applied to all sync en
   - node_modules
   - ._*
 
-services:                        # optional — multi-service (see below)
-  api:
-    sync: ./dist/api → ~/my-app/api
-    start: node api/server.js
+services:                        # optional — multi-service (see below). Each service takes the SAME
+  api:                           #   fields as the root (build/sync/postSync/restart/health/cwd),
+    build: npm run build:api     #   inheriting root when omitted. A service's own `build` runs when
+    sync: ./dist/api → ~/my-app/api  #   you target it (`shipway deploy api`); `sync: []` + `postSync: ''`
+    start: node api/server.js    #   make a restart-only service. (build is NOT inherited from root.)
     port: 4001
   worker:
     sync: ./dist/worker → ~/my-app/worker
@@ -505,7 +506,7 @@ shipway logs --env staging       # tail staging logs
 | `shipway deploy` | Full pipeline: build → sync → restart → health check |
 | `shipway deploy --dry-run` | Preview everything without executing |
 | `shipway deploy --env staging` | Deploy using the `staging` environment |
-| `shipway deploy api` | Deploy only the `api` service (multi-service) |
+| `shipway deploy api` | Deploy only the `api` service (multi-service) — runs that service's own `build` first, so you can rebuild+ship one service in isolation (e.g. a UI-only deploy) |
 
 ### Operations
 
