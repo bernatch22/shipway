@@ -34,6 +34,18 @@ export interface NormalizedConfig {
   env?: NormalizedEnvFile;
   exclude: string[];
   services?: Record<string, NormalizedService>;
+  /** Named `shipway logs <strategy>` sources (raw file/cmd tail over SSH). */
+  logs?: Record<string, NormalizedLogStrategy>;
+}
+
+/** A resolved `shipway logs <strategy>` source. */
+export interface NormalizedLogStrategy {
+  /** Custom command to run over SSH (takes precedence over `file`). */
+  cmd?: string;
+  /** Remote file to tail with `tail -F`. */
+  file?: string;
+  /** Default backlog lines for non-follow (overridden by --lines). */
+  lines?: number;
 }
 
 /** Resolved env-file locations for `shipway env` pull/push. */

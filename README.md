@@ -541,12 +541,53 @@ shipway deploy --env staging     # → staging (explicit --env overrides default
 | `shipway logs --lines 100` | Last 100 lines |
 | `shipway logs --follow` | Stream logs in real-time |
 | `shipway logs --grep error` | Filter logs by pattern |
+| `shipway logs <strategy> --follow` | Tail a named raw-file strategy (see [Log strategies](#log-strategies)) |
 | `shipway restart` | Restart the remote service |
 | `shipway stop` | Stop the remote service |
 | `shipway start` | Start the remote service |
 | `shipway exec -- ls -la` | Run a command on the remote host |
 | `shipway ssh` | Open interactive SSH session |
 | `shipway open` | Open the deployed URL in browser |
+
+### Log strategies
+
+By default `shipway logs` goes through the process manager (`pm2 logs` / `journalctl`).
+That's fine for a quick look, but pm2 **buffers** its output — so `--follow` lags, which
+is painful when you're watching a fast, chatty stream (STT transcripts, turn detection,
+TTS chunks, LLM tokens) and need it *now*.
+
+A **log strategy** is a named source under a top-level `logs:` key that tails a **raw file
+(or runs a custom command) directly over SSH**, skipping the process manager entirely. With
+`--follow` it uses `tail -F` under a forced PTY, so lines stream the instant they're written.
+
+```yaml
+# shipway.yml
+logs:
+  live: /tmp/app.log                 # shorthand: a remote file to tail
+  errors:
+    file: /var/log/app/error.log
+    lines: 200                       # default backlog (overridden by --lines)
+  systemd:
+    cmd: journalctl -u app -f        # custom command (overrides file)
+```
+
+```bash
+shipway logs live --follow           # tail -F /tmp/app.log over SSH, real-time, no pm2
+shipway logs errors --lines 500      # snapshot, last 500 lines
+shipway logs live --follow --grep turn   # stream, line-buffered grep
+```
+
+Notes:
+- A strategy name is matched **before** services, so it always wins over a same-named service.
+- An unknown name falls through to the normal pm2/systemd path — fully backwards-compatible.
+- `tail -F` waits if the file doesn't exist yet (handy right after a deploy, before the
+  first line lands) and survives log rotation/truncation.
+- Strategies can be defined per-environment too (under `environments.<env>.logs`).
+
+> **Pinecall:** the `sdk-server` voice server tees every channel (STT, turns, TTS, LLM) into
+> `/tmp/pinecall.log`, exposed as the `live` strategy — `shipway logs live --follow` is the
+> full real-time firehose. Per-channel strategies (`stt`, `llm`, `audio`, `calls`) tail the
+> individual files.
 
 ### Env Files
 

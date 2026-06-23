@@ -601,6 +601,17 @@ const ServiceSchema = z.object({
   health: HealthSchema.optional(),
 });
 
+// Named `shipway logs <strategy>` source — tail a raw remote file (or run a
+// custom command) directly over SSH, bypassing the process manager's buffering.
+const LogStrategySchema = z.union([
+  z.string(),  // shorthand: remote file path to tail
+  z.object({
+    file: z.string().optional(),   // remote file to tail (tail -F)
+    cmd: z.string().optional(),    // custom command, overrides file
+    lines: z.number().int().optional(),  // default backlog (overridden by --lines)
+  }),
+]);
+
 export const ShipwayConfigSchema = z.object({
   name: z.string().min(1),
   url: z.string().url().optional(),
@@ -613,6 +624,7 @@ export const ShipwayConfigSchema = z.object({
   port: z.number().optional(),
   health: HealthSchema.optional(),
   services: z.record(z.string(), ServiceSchema).optional(),
+  logs: z.record(z.string(), LogStrategySchema).optional(),  // v0.5.0+
 });
 
 export type ShipwayConfig = z.infer<typeof ShipwayConfigSchema>;
@@ -628,6 +640,7 @@ Implemented in `src/config/normalize.ts`. Applied after parsing, before validati
 - `sync: "./dist → ~/app"` with `~` expanded based on resolved host's home dir
 - `port: 5050` → `health: { url: "http://localhost:5050/", expect: 200, retries: 5, delayMs: 1000 }`
 - `start: "node x.js"` (without `restart`) → `restart: { method: 'pm2', name: <root name>, start: "node x.js" }`
+- `logs: { live: "/tmp/app.log" }` (string shorthand) → `{ live: { file: "/tmp/app.log" } }`
 - `restart.name` defaults to `<config.name>` (or `<config.name>-<service>` in multi-service)
 - `exclude` always includes the implicit `['.DS_Store', '._*', '.git', 'node_modules']` unless overridden with `exclude: { override: [...] }`
 

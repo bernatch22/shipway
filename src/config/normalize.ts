@@ -49,6 +49,14 @@ export function normalize(raw: ShipwayConfig): NormalizedConfig {
     }
   }
 
+  if (raw.logs) {
+    result.logs = {};
+    for (const [key, strat] of Object.entries(raw.logs)) {
+      // Shorthand string → remote file to tail.
+      result.logs[key] = typeof strat === 'string' ? { file: strat } : { ...strat };
+    }
+  }
+
   return result;
 }
 

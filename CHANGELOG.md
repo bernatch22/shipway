@@ -3,6 +3,17 @@
 All notable changes to **shipway** are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow semver (pre-1.0, minor = features/notable docs).
 
+## [0.5.0] — 2026-06-22
+
+### Added
+- **Log strategies** — a top-level `logs:` map of named sources for `shipway logs <strategy>`.
+  Each strategy tails a **raw remote file** (`tail -F` under a forced PTY) or runs a **custom
+  command** directly over SSH, bypassing the process manager. This avoids pm2's output buffering,
+  so `--follow` streams in real-time — ideal for fast, chatty logs (STT/turns/TTS/LLM). Shorthand
+  `name: /path/to/file`, or `{ file, cmd, lines }`. `--lines` and `--grep` (line-buffered) still
+  apply. A strategy name is matched before services; unknown names fall through to the normal
+  pm2/systemd path (backwards-compatible). Definable per-environment under `environments.<env>.logs`.
+
 ## [0.4.0] — 2026-06-18
 
 ### Added

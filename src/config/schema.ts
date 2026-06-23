@@ -75,6 +75,18 @@ export const ServiceSchema = z.object({
   health: HealthSchema.optional(),
   cwd: z.string().optional(),
 });
+// ── Log strategy (named `shipway logs <strategy>` source) ──
+// Tail a raw remote file (or run a custom command) directly over SSH instead
+// of going through the process manager — avoids pm2's buffering/lag.
+export const LogStrategySchema = z.union([
+  z.string(), // shorthand: remote file path to tail (e.g. /tmp/pinecall.log)
+  z.object({
+    file: z.string().optional(), // remote file to tail (tail -F)
+    cmd: z.string().optional(), // custom command, overrides file (e.g. "journalctl -u x -f")
+    lines: z.number().int().optional(), // default backlog lines (overridden by --lines)
+  }),
+]);
+
 // ── Environment overrides ─────────────────────────────────
 
 export const EnvironmentSchema = z.object({
@@ -91,6 +103,7 @@ export const EnvironmentSchema = z.object({
   env: EnvFileSchema.optional(),
   services: z.record(z.string(), ServiceSchema).optional(),
   exclude: z.array(z.string()).optional(),
+  logs: z.record(z.string(), LogStrategySchema).optional(),
 });
 
 // ── Top-level config ──────────────────────────────────────
@@ -110,6 +123,7 @@ export const ShipwayConfigSchema = z.object({
   env: EnvFileSchema.optional(),
   services: z.record(z.string(), ServiceSchema).optional(),
   exclude: z.array(z.string()).optional(),
+  logs: z.record(z.string(), LogStrategySchema).optional(),
   environments: z.record(z.string(), EnvironmentSchema).optional(),
   // When set, `shipway deploy` (no --env) uses this environment instead of the base config.
   // An explicit --env always wins. Useful when the common target is an environment (e.g. prod).
@@ -125,5 +139,6 @@ export type HostObject = z.infer<typeof HostObjectSchema>;
 export type RestartConfig = z.infer<typeof RestartSchema>;
 export type HealthConfig = z.infer<typeof HealthSchema>;
 export type ServiceConfig = z.infer<typeof ServiceSchema>;
+export type LogStrategyConfig = z.infer<typeof LogStrategySchema>;
 export type EnvironmentConfig = z.infer<typeof EnvironmentSchema>;
 export type ShipwayConfig = z.infer<typeof ShipwayConfigSchema>;
