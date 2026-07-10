@@ -7,23 +7,31 @@ import { HostResolver } from '../host/resolver.js';
 import { bold, cyan, dim, green, red, yellow } from '../logging/colors.js';
 import type { Command, CommandContext } from './types.js';
 
-type Action = 'pull' | 'push' | 'diff';
+type Action = 'pull' | 'push' | 'diff' | 'list';
 
 /**
  * `shipway env` — manage the remote `.env` without it being clobbered by deploys.
  *
  *   shipway env [diff]          show key-level diff (local vs remote) — read-only
+ *   shipway env list            list every key on the remote .env — values NEVER printed
  *   shipway env pull [--out p]  download the remote .env to a local file
  *   shipway env push [path]     upload a local .env to the remote (needs --yes)
  *
- * Values are NEVER printed — diffs show key names only. Pull writes 0600 and
- * refuses to clobber an existing file without --force. Push backs up the remote
- * to `<path>.bak`, writes atomically, and can `--restart` the service after.
+ * Multi-service: pass `--service <name>` to target that service's OWN env file
+ * (falls back to the root `env:` when the service doesn't declare one — the
+ * common case of one shared .env for a multi-service stack on one box).
+ * `--env <name>` (global flag, handled by the config loader) picks the
+ * environment; combine both, e.g. `shipway env list --env prod --service api`.
+ *
+ * Values are NEVER printed — diffs and `list` show key names only. Pull writes
+ * 0600 and refuses to clobber an existing file without --force. Push backs up
+ * the remote to `<path>.bak`, writes atomically, and can `--restart` after.
  */
 class EnvCommand implements Command {
   readonly name = 'env';
-  readonly description = 'Pull/push/diff the remote .env file';
-  readonly usage = 'shipway env [diff|pull|push] [--out <path>] [--yes] [--force] [--restart]';
+  readonly description = 'Pull/push/diff/list the remote .env file';
+  readonly usage =
+    'shipway env [diff|pull|push|list] [path] [--service <name>] [--out <path>] [--yes] [--force] [--restart]';
 
   async execute(ctx: CommandContext): Promise<number> {
     if (!ctx.config) {
@@ -31,17 +39,28 @@ class EnvCommand implements Command {
       return ExitCode.CONFIG;
     }
 
-    const env = this.resolveEnvFile(ctx);
+    const serviceName = ctx.flags.service as string | undefined;
+    if (serviceName && !ctx.config.services?.[serviceName]) {
+      const available = Object.keys(ctx.config.services ?? {}).join(', ') || '(no services defined)';
+      ctx.logger.error(`Service "${serviceName}" not found. Available: ${available}`);
+      return ExitCode.CONFIG;
+    }
+
+    const env = this.resolveEnvFile(ctx, serviceName);
     if (!env) {
-      ctx.logger.error('No env file location resolved. Set `env:` or `remoteDir:` in shipway.yml.');
+      const where = serviceName ? `service "${serviceName}"` : 'the project';
+      ctx.logger.error(
+        `No env file location resolved for ${where}. Set \`env:\` (root, per-service, or per-environment) or \`remoteDir:\` in shipway.yml.`,
+      );
       return ExitCode.CONFIG;
     }
     const remotePath = (ctx.flags.remote as string) || env.remote;
 
     const sub = ctx.args[0];
-    const action: Action = sub === 'pull' || sub === 'push' ? sub : 'diff';
-    // For pull/push the second positional is an optional local path.
-    const localArg = sub === 'pull' || sub === 'push' || sub === 'diff' ? ctx.args[1] : ctx.args[0];
+    const action: Action = sub === 'pull' || sub === 'push' || sub === 'list' ? sub : 'diff';
+    // For pull/push/diff the second positional is an optional local path.
+    const localArg =
+      sub === 'pull' || sub === 'push' || sub === 'diff' || sub === 'list' ? ctx.args[1] : ctx.args[0];
 
     const ssh = await ctx.createSSH();
     const resolver = new HostResolver();
@@ -49,11 +68,38 @@ class EnvCommand implements Command {
 
     if (action === 'pull') return this.pull(ctx, ssh, remotePath, host.ssh, env, localArg);
     if (action === 'push') return this.push(ctx, ssh, remotePath, host.ssh, env, localArg);
+    if (action === 'list') return this.list(ctx, ssh, remotePath, host.ssh, serviceName);
     return this.diff(ctx, ssh, remotePath, host.ssh, env, localArg);
   }
 
-  private resolveEnvFile(ctx: CommandContext): NormalizedEnvFile | undefined {
+  /** Service env (if declared) → root env (root/environment-merged) → undefined. */
+  private resolveEnvFile(ctx: CommandContext, serviceName?: string): NormalizedEnvFile | undefined {
+    if (serviceName) return ctx.config?.services?.[serviceName]?.env ?? ctx.config?.env;
     return ctx.config?.env;
+  }
+
+  // ── list ────────────────────────────────────────────────────────────────
+  // Just the keys — no diff, no local file involved. `shipway env list` alone
+  // answers "what's actually set on the box right now" without a pull/edit/push
+  // round-trip, and composes with --service/--env to inspect one unit at a time.
+  private async list(
+    ctx: CommandContext,
+    ssh: Awaited<ReturnType<CommandContext['createSSH']>>,
+    remotePath: string,
+    server: string,
+    serviceName?: string,
+  ): Promise<number> {
+    const buf = await ssh.readRemoteFile(remotePath);
+    const label = serviceName ? ` ${dim(`(service: ${serviceName})`)}` : '';
+    if (buf === null) {
+      ctx.logger.warn(`No remote env file at ${server}:${remotePath}${label}`);
+      return ExitCode.OK;
+    }
+    const keys = [...parseEnvKeys(buf.toString('utf-8')).keys()].sort();
+    ctx.logger.raw(`\n${bold(server)}:${remotePath}${label} ${dim(`— ${keys.length} key(s)`)}\n\n`);
+    for (const k of keys) ctx.logger.raw(`  ${k}\n`);
+    ctx.logger.raw('\n');
+    return ExitCode.OK;
   }
 
   // ── pull ────────────────────────────────────────────────────────────────

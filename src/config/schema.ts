@@ -74,6 +74,10 @@ export const ServiceSchema = z.object({
   port: z.number().optional(),
   health: HealthSchema.optional(),
   cwd: z.string().optional(),
+  // Falls back to the root/environment `env:` when omitted — set this only
+  // when a service (e.g. a sidecar in its own remoteDir) owns a SEPARATE
+  // .env. See `shipway env <action> <service>`.
+  env: EnvFileSchema.optional(),
 });
 // ── Log strategy (named `shipway logs <strategy>` source) ──
 // Tail a raw remote file (or run a custom command) directly over SSH instead

@@ -3,6 +3,26 @@
 All notable changes to **shipway** are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow semver (pre-1.0, minor = features/notable docs).
 
+## [0.5.1] — 2026-07-10
+
+### Fixed
+- **Multi-service deploy swallowed the real error on failure.** `shipway deploy <service>` caught
+  the underlying `DeployError` with a bare `catch {}` (no binding) and only ever printed
+  `Service "x" failed.` — the actual cause (an rsync path that no longer exists, a failed
+  `postSync` command, SSH auth) was discarded. Now prints `err.message` (which already includes
+  the step + cause) plus the wrapped cause's message on a second line when it adds detail.
+
+### Added
+- **`shipway env list [--service <name>]`** — lists every key on the remote `.env` (never
+  values), for the whole project or one service in a multi-service config. Answers "what's
+  actually set on the box" without a pull/edit/push round-trip.
+- **Per-service `env:`** — a `services.<name>.env` field (same shorthand as the root `env:`)
+  lets one service in a multi-service stack own its own `.env` file/path. Falls back to the
+  root/environment `env:` when omitted (the common case — one shared `.env`).
+- **`--service <name>`** flag on `shipway env pull|push|diff|list` to target that service's env
+  file explicitly. Combines with the existing `--env <name>` for `shipway env list --env prod
+  --service api`.
+
 ## [0.5.0] — 2026-06-22
 
 ### Added

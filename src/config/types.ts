@@ -78,4 +78,8 @@ export interface NormalizedService {
   restart: NormalizedRestart;
   health?: NormalizedHealth;
   cwd?: string;
+  /** Env file location for THIS service (falls back to the root `env:` when
+   *  omitted — a multi-service stack usually shares one .env, but a sidecar in
+   *  its own remoteDir needs its own). See `shipway env <action> <service>`. */
+  env?: NormalizedEnvFile;
 }

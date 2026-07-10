@@ -266,5 +266,9 @@ function normalizeService(
     ),
     health: normalizeHealth(svc.health, svc.port ?? root.port),
     cwd: svc.cwd,
+    // Sin `env:` propio, un servicio comparte el .env de la raíz (el caso común:
+    // un stack multi-service en UNA caja, un solo .env). Un sidecar con su
+    // propio remoteDir puede declarar el suyo.
+    env: normalizeEnvFile(svc.env ?? root.env, svc.cwd ?? remoteDir),
   };
 }

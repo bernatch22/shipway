@@ -1,6 +1,6 @@
 {
   "name": "shipway",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Deploy Node.js, Python, and Ruby apps over SSH. Seven lines of YAML. No Docker.",
   "type": "module",
   "bin": {
@@ -34,8 +34,16 @@
     "cli",
     "devops"
   ],
-  "author": "Berna",
+  "author": "bernatch22",
   "license": "MIT",
+  "homepage": "https://github.com/bernatch22/shipway#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bernatch22/shipway.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bernatch22/shipway/issues"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
     "yaml": "^2.7.1",

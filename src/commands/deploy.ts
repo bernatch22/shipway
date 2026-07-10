@@ -79,8 +79,9 @@ class DeployCommand implements Command {
           projectDir: ctx.cwd,
           dryRun,
         });
-      } catch {
+      } catch (err) {
         failed = true;
+        ctx.logger.error(err instanceof Error ? err.message : String(err));
         return ExitCode.GENERAL;
       }
       ctx.logger.blank();
@@ -115,8 +116,20 @@ class DeployCommand implements Command {
           dryRun,
           serviceName: name,
         });
-      } catch {
-        ctx.logger.error(`Service "${name}" failed.`);
+      } catch (err) {
+        // El catch original descartaba `err` por completo (`catch {}` sin bind) —
+        // un fallo de rsync/ssh real (permisos, host down, exclude inválido) se
+        // reportaba como "failed" sin ninguna pista. DeployError.message YA trae
+        // "Deploy failed at step X: <causa real>" (ver errors/deploy-error.ts);
+        // solo había que imprimirlo.
+        const msg = err instanceof Error ? err.message : String(err);
+        ctx.logger.error(`Service "${name}" failed: ${msg}`);
+        // La causa original (p.ej. RsyncError con stderr/exitCode) puede venir
+        // anidada un nivel más — mostrarla si difiere del mensaje ya impreso.
+        const cause = err instanceof Error ? (err as Error & { cause?: unknown }).cause : undefined;
+        if (cause instanceof Error && cause.message && !msg.includes(cause.message)) {
+          ctx.logger.error(`  ↳ ${cause.message}`);
+        }
         failed = true;
         break;
       }
