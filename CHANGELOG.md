@@ -3,7 +3,7 @@
 All notable changes to **shipway** are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow semver (pre-1.0, minor = features/notable docs).
 
-## [0.5.1] — 2026-07-10
+## [0.5.2] — 2026-07-10
 
 ### Fixed
 - **Multi-service deploy swallowed the real error on failure.** `shipway deploy <service>` caught
