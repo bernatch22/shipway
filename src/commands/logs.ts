@@ -1,5 +1,5 @@
-import { getProcessManager } from '../process-managers/index.js';
 import { ExitCode } from '../errors/index.js';
+import { getProcessManager } from '../process-managers/index.js';
 import type { Command, CommandContext } from './types.js';
 
 class LogsCommand implements Command {
@@ -16,7 +16,7 @@ class LogsCommand implements Command {
     const serviceArg = ctx.args[0];
     const ssh = await ctx.createSSH();
 
-    const lines = typeof ctx.flags.lines === 'string' ? parseInt(ctx.flags.lines, 10) : 50;
+    const lines = typeof ctx.flags.lines === 'string' ? Number.parseInt(ctx.flags.lines, 10) : 50;
     const follow = ctx.flags.follow === true || ctx.flags.f === true;
     const grep = typeof ctx.flags.grep === 'string' ? ctx.flags.grep : undefined;
     const since = typeof ctx.flags.since === 'string' ? ctx.flags.since : undefined;
@@ -26,8 +26,9 @@ class LogsCommand implements Command {
     // Checked before services so a strategy name always wins.
     if (serviceArg && ctx.config.logs?.[serviceArg]) {
       const strat = ctx.config.logs[serviceArg];
-      const backlog = typeof ctx.flags.lines === 'string' ? lines : strat.lines ?? lines;
-      const remoteCmd = strat.cmd ?? (strat.file ? buildTailCommand(strat.file, backlog, follow, grep) : null);
+      const backlog = typeof ctx.flags.lines === 'string' ? lines : (strat.lines ?? lines);
+      const remoteCmd =
+        strat.cmd ?? (strat.file ? buildTailCommand(strat.file, backlog, follow, grep) : null);
       if (!remoteCmd) {
         ctx.logger.error(`Log strategy "${serviceArg}" needs a "file" or "cmd".`);
         return ExitCode.CONFIG;

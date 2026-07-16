@@ -1,13 +1,13 @@
+import type { NormalizedConfig, NormalizedService, ResolvedHost } from '../config/types.js';
+import { ExitCode } from '../errors/index.js';
+import { HostResolver } from '../host/resolver.js';
+import { deployFooter, deployHeader } from '../logging/format.js';
 import { DeployPipeline } from '../pipeline/deploy-pipeline.js';
 import { BuildStep } from '../pipeline/steps/build.js';
-import { SyncStep } from '../pipeline/steps/sync.js';
+import { HealthCheckStep } from '../pipeline/steps/health-check.js';
 import { PostSyncStep } from '../pipeline/steps/post-sync.js';
 import { RestartStep } from '../pipeline/steps/restart.js';
-import { HealthCheckStep } from '../pipeline/steps/health-check.js';
-import { HostResolver } from '../host/resolver.js';
-import { ExitCode } from '../errors/index.js';
-import { deployHeader, deployFooter } from '../logging/format.js';
-import type { NormalizedConfig, NormalizedService, ResolvedHost } from '../config/types.js';
+import { SyncStep } from '../pipeline/steps/sync.js';
 import type { SSHClient } from '../ssh/client.js';
 import type { Command, CommandContext } from './types.js';
 
@@ -18,7 +18,9 @@ class DeployCommand implements Command {
 
   async execute(ctx: CommandContext): Promise<number> {
     if (!ctx.config) {
-      ctx.logger.error('No shipway config found. Run from a project directory or specify an alias.');
+      ctx.logger.error(
+        'No shipway config found. Run from a project directory or specify an alias.',
+      );
       return ExitCode.CONFIG;
     }
 
@@ -49,9 +51,7 @@ class DeployCommand implements Command {
   ): Promise<number> {
     const config = ctx.config!;
     const services = config.services!;
-    const serviceNames = serviceFilter
-      ? [serviceFilter]
-      : Object.keys(services);
+    const serviceNames = serviceFilter ? [serviceFilter] : Object.keys(services);
 
     // Validate the service filter
     if (serviceFilter && !services[serviceFilter]) {
@@ -60,7 +60,9 @@ class DeployCommand implements Command {
       return ExitCode.CONFIG;
     }
 
-    ctx.logger.raw(`🚀 ${dryRun ? '[DRY RUN] ' : ''}shipway → ${config.name} (${serviceNames.length} services)\n`);
+    ctx.logger.raw(
+      `🚀 ${dryRun ? '[DRY RUN] ' : ''}shipway → ${config.name} (${serviceNames.length} services)\n`,
+    );
     ctx.logger.blank();
 
     const t0 = Date.now();
@@ -68,7 +70,7 @@ class DeployCommand implements Command {
 
     // Build once at root level if defined (shared build step)
     if (config.build && !serviceFilter) {
-      ctx.logger.raw(`▶ Build (shared)\n`);
+      ctx.logger.raw('▶ Build (shared)\n');
       const pipeline = new DeployPipeline([new BuildStep()]);
       try {
         await pipeline.execute({

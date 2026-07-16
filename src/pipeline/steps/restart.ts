@@ -1,6 +1,6 @@
 import { getProcessManager } from '../../process-managers/index.js';
-import type { DeployStep } from '../deploy-pipeline.js';
 import type { DeployContext } from '../deploy-context.js';
+import type { DeployStep } from '../deploy-pipeline.js';
 
 /**
  * Restart step — restart the service via the configured process manager.
@@ -25,7 +25,11 @@ export class RestartStep implements DeployStep {
 
     // Use start() which handles the "not found" case with initial creation
     if (restart.start) {
-      const cwd = restart.cwd ?? config.remoteDir ?? config.sync[0]?.remote ?? `/home/${ctx.host.user}/${config.name}`;
+      const cwd =
+        restart.cwd ??
+        config.remoteDir ??
+        config.sync[0]?.remote ??
+        `/home/${ctx.host.user}/${config.name}`;
       await pm.start(ssh, {
         name,
         command: restart.start,

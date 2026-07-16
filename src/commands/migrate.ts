@@ -1,5 +1,5 @@
-import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { stringify as stringifyYaml } from 'yaml';
 import { ExitCode } from '../errors/index.js';
@@ -80,7 +80,7 @@ class MigrateCommand implements Command {
         !shipit.health.retries &&
         !shipit.health.delayMs
       ) {
-        shipway.port = parseInt(portMatch[1]!, 10);
+        shipway.port = Number.parseInt(portMatch[1]!, 10);
       } else {
         shipway.health = shipit.health;
       }

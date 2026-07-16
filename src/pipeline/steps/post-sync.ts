@@ -1,5 +1,5 @@
-import type { DeployStep } from '../deploy-pipeline.js';
 import type { DeployContext } from '../deploy-context.js';
+import type { DeployStep } from '../deploy-pipeline.js';
 
 /**
  * Post-sync step — runs a command on the remote server after syncing.

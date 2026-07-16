@@ -67,9 +67,6 @@ export async function exec(
 /**
  * Run a command as a shell string (for user-provided build commands with &&, ||).
  */
-export async function execShell(
-  command: string,
-  options: ExecOptions = {},
-): Promise<ExecResult> {
+export async function execShell(command: string, options: ExecOptions = {}): Promise<ExecResult> {
   return exec('sh', ['-c', command], { ...options, shell: false });
 }

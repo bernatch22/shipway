@@ -1,6 +1,6 @@
 import type { NormalizedConfig, ResolvedHost } from '../config/types.js';
-import type { SSHClient } from '../ssh/client.js';
 import type { Logger } from '../logging/logger.js';
+import type { SSHClient } from '../ssh/client.js';
 
 /**
  * Context passed to each deploy pipeline step.

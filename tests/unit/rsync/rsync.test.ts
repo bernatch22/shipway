@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { RsyncArgsBuilder } from '../../../src/rsync/builder.ts';
 import { assertSafeRemote, shouldDisableDeleteForMultiLocal } from '../../../src/rsync/safety.ts';
 
@@ -36,10 +36,7 @@ describe('RsyncArgsBuilder', () => {
   });
 
   it('should add exclude patterns', () => {
-    const args = new RsyncArgsBuilder()
-      .exclude('.DS_Store')
-      .exclude('node_modules')
-      .build();
+    const args = new RsyncArgsBuilder().exclude('.DS_Store').exclude('node_modules').build();
 
     const dsIdx = args.indexOf('.DS_Store');
     expect(dsIdx).toBeGreaterThan(0);
@@ -47,9 +44,7 @@ describe('RsyncArgsBuilder', () => {
   });
 
   it('should handle file source (no trailing slash)', () => {
-    const args = new RsyncArgsBuilder()
-      .source('./package.json', false)
-      .build();
+    const args = new RsyncArgsBuilder().source('./package.json', false).build();
 
     expect(args).toContain('./package.json');
   });

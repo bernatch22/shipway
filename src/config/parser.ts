@@ -1,10 +1,10 @@
-import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import { ShipwayConfigSchema } from './schema.js';
-import { normalize } from './normalize.js';
 import { ConfigError } from '../errors/index.js';
+import { normalize } from './normalize.js';
+import { ShipwayConfigSchema } from './schema.js';
 import type { ShipwayConfig } from './schema.js';
 import type { NormalizedConfig } from './types.js';
 
@@ -28,10 +28,7 @@ export function findConfigFile(dir: string): string | null {
  * If `env` is provided, merges the matching environment overrides on top.
  * Returns a fully normalized config.
  */
-export async function loadConfig(
-  filePath: string,
-  env?: string,
-): Promise<NormalizedConfig> {
+export async function loadConfig(filePath: string, env?: string): Promise<NormalizedConfig> {
   const content = await readFile(filePath, 'utf-8');
 
   let raw: unknown;
@@ -76,10 +73,7 @@ export async function loadConfig(
  * Merge environment overrides onto the base config.
  * Environment fields override base fields (shallow merge per top-level key).
  */
-function mergeEnvironment(
-  base: ShipwayConfig,
-  envName: string,
-): ShipwayConfig {
+function mergeEnvironment(base: ShipwayConfig, envName: string): ShipwayConfig {
   if (!base.environments) {
     throw new ConfigError(
       'environments',
@@ -122,10 +116,7 @@ function stripUndefined(obj: Record<string, unknown>): Record<string, unknown> {
 /**
  * Load config from a directory, auto-detecting the config file.
  */
-export async function loadConfigFromDir(
-  dir: string,
-  env?: string,
-): Promise<NormalizedConfig> {
+export async function loadConfigFromDir(dir: string, env?: string): Promise<NormalizedConfig> {
   const configPath = findConfigFile(dir);
   if (!configPath) {
     throw new ConfigError(

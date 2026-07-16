@@ -1,5 +1,5 @@
-import { RsyncError } from '../errors/index.js';
 import type { SyncEntry } from '../config/schema.js';
+import { RsyncError } from '../errors/index.js';
 
 /**
  * Assert that a remote path is deep enough for --delete to be safe.
@@ -14,9 +14,7 @@ export function assertSafeRemote(remote: string): void {
 
   if (parts.length < 3) {
     throw new RsyncError(
-      `Refusing --delete on shallow path "${remote}". ` +
-        'This could wipe important files. ' +
-        'Use a deeper path, or set "delete: false" in the sync entry.',
+      `Refusing --delete on shallow path "${remote}". This could wipe important files. Use a deeper path, or set "delete: false" in the sync entry.`,
     );
   }
 }
@@ -37,9 +35,5 @@ export function shouldDisableDeleteForMultiLocal(entry: SyncEntry): boolean {
  * Generate a warning message when --delete is disabled for multi-local.
  */
 export function multiLocalWarning(remote: string, localCount: number): string {
-  return (
-    `--delete disabled for "${remote}" because there are ${localCount} local sources. ` +
-    'Each rsync run would delete files placed by previous runs. ' +
-    'Split into separate sync entries if you need --delete.'
-  );
+  return `--delete disabled for "${remote}" because there are ${localCount} local sources. Each rsync run would delete files placed by previous runs. Split into separate sync entries if you need --delete.`;
 }

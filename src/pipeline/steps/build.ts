@@ -1,6 +1,6 @@
 import { execShell } from '../../utils/exec.js';
-import type { DeployStep } from '../deploy-pipeline.js';
 import type { DeployContext } from '../deploy-context.js';
+import type { DeployStep } from '../deploy-pipeline.js';
 
 /**
  * Build step — runs the local build command.

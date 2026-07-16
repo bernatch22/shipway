@@ -1,6 +1,6 @@
 import { runSync } from '../../rsync/runner.js';
-import type { DeployStep } from '../deploy-pipeline.js';
 import type { DeployContext } from '../deploy-context.js';
+import type { DeployStep } from '../deploy-pipeline.js';
 
 /**
  * Sync step — rsync local files to remote server.
@@ -25,11 +25,7 @@ export class SyncStep implements DeployStep {
 
     // Sync each entry
     for (const entry of config.sync) {
-      await runSync(
-        entry,
-        { server: host.ssh, keyPath: host.key, dryRun },
-        logger,
-      );
+      await runSync(entry, { server: host.ssh, keyPath: host.key, dryRun }, logger);
     }
   }
 }

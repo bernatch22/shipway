@@ -29,6 +29,6 @@
     }
   },
   "files": {
-    "ignore": ["node_modules", "bin", "dist", "*.json"]
+    "ignore": ["node_modules", "bin", "dist", "*.json", "examples"]
   }
 }

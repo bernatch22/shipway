@@ -1,5 +1,5 @@
 import { homedir } from 'node:os';
-import { resolve, join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 /**
  * Expand tilde (~) in a path to the user's home directory.

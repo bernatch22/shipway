@@ -1,5 +1,5 @@
-import { HostResolver } from '../host/resolver.js';
 import { ExitCode } from '../errors/index.js';
+import { HostResolver } from '../host/resolver.js';
 import type { Command, CommandContext } from './types.js';
 
 class ExecCommand implements Command {

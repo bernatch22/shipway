@@ -1,6 +1,6 @@
-import { FileProjectRepository } from '../registry/file-repository.js';
 import { ExitCode } from '../errors/index.js';
 import { bold, dim, green } from '../logging/colors.js';
+import { FileProjectRepository } from '../registry/file-repository.js';
 import type { Command, CommandContext } from './types.js';
 
 class LsCommand implements Command {

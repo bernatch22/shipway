@@ -1,10 +1,10 @@
 import { existsSync, statSync } from 'node:fs';
-import { exec } from '../utils/exec.js';
-import { RsyncError } from '../errors/index.js';
-import { RsyncArgsBuilder } from './builder.js';
-import { assertSafeRemote, shouldDisableDeleteForMultiLocal, multiLocalWarning } from './safety.js';
 import type { SyncEntry } from '../config/schema.js';
+import { RsyncError } from '../errors/index.js';
 import type { Logger } from '../logging/logger.js';
+import { exec } from '../utils/exec.js';
+import { RsyncArgsBuilder } from './builder.js';
+import { assertSafeRemote, multiLocalWarning, shouldDisableDeleteForMultiLocal } from './safety.js';
 
 export interface RsyncRunnerOptions {
   server: string;
@@ -24,7 +24,9 @@ export async function runSync(
   const { server, keyPath, dryRun = false } = options;
 
   if (!entry.remote) {
-    throw new RsyncError('Sync entry is missing "remote" — this should have been caught during normalization');
+    throw new RsyncError(
+      'Sync entry is missing "remote" — this should have been caught during normalization',
+    );
   }
   const remote = entry.remote;
 

@@ -1,6 +1,6 @@
-import type { SSHClient } from '../ssh/client.js';
 import type { NormalizedHealth } from '../config/types.js';
 import type { Logger } from '../logging/logger.js';
+import type { SSHClient } from '../ssh/client.js';
 
 export interface HealthCheckResult {
   healthy: boolean;
@@ -25,7 +25,7 @@ export async function checkHealth(
       { allowFail: true },
     );
 
-    const statusCode = parseInt(result.trim(), 10) || null;
+    const statusCode = Number.parseInt(result.trim(), 10) || null;
 
     if (statusCode === expect) {
       logger.success(`Healthy (HTTP ${statusCode}) on attempt ${i}`);

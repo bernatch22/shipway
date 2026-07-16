@@ -1,5 +1,5 @@
 import type { SSHClient } from '../ssh/client.js';
-import type { ProcessManager, StartOpts, LogsOpts, ProcessStatus } from './types.js';
+import type { LogsOpts, ProcessManager, ProcessStatus, StartOpts } from './types.js';
 
 /**
  * No-op process manager for static sites without a running process.

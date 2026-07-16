@@ -1,5 +1,5 @@
-import { FileProjectRepository } from '../registry/file-repository.js';
 import { ExitCode } from '../errors/index.js';
+import { FileProjectRepository } from '../registry/file-repository.js';
 import type { Command, CommandContext } from './types.js';
 
 class UnlinkCommand implements Command {

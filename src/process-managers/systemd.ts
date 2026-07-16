@@ -1,5 +1,5 @@
 import type { SSHClient } from '../ssh/client.js';
-import type { ProcessManager, StartOpts, LogsOpts, ProcessStatus } from './types.js';
+import type { LogsOpts, ProcessManager, ProcessStatus, StartOpts } from './types.js';
 
 /**
  * systemd process manager adapter.
@@ -20,10 +20,9 @@ export class SystemdManager implements ProcessManager {
   }
 
   async status(ssh: SSHClient, name: string): Promise<ProcessStatus> {
-    const result = await ssh.execSilent(
-      `systemctl is-active ${name} 2>/dev/null`,
-      { allowFail: true },
-    );
+    const result = await ssh.execSilent(`systemctl is-active ${name} 2>/dev/null`, {
+      allowFail: true,
+    });
 
     const active = result.trim() === 'active';
 

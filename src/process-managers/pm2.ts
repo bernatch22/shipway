@@ -1,5 +1,5 @@
 import type { SSHClient } from '../ssh/client.js';
-import type { ProcessManager, StartOpts, LogsOpts, ProcessStatus } from './types.js';
+import type { LogsOpts, ProcessManager, ProcessStatus, StartOpts } from './types.js';
 
 /**
  * pm2 process manager adapter.
@@ -9,16 +9,13 @@ export class Pm2Manager implements ProcessManager {
 
   async start(ssh: SSHClient, opts: StartOpts): Promise<void> {
     // Check if process exists
-    const check = await ssh.execSilent(
-      `pm2 id ${opts.name} 2>/dev/null || echo NOTFOUND`,
-      { allowFail: true },
-    );
+    const check = await ssh.execSilent(`pm2 id ${opts.name} 2>/dev/null || echo NOTFOUND`, {
+      allowFail: true,
+    });
 
     if (check.includes('NOTFOUND') || check.includes('[]')) {
       // First time — start with pm2
-      await ssh.exec(
-        `cd ${opts.cwd} && pm2 start '${opts.command}' --name ${opts.name}`,
-      );
+      await ssh.exec(`cd ${opts.cwd} && pm2 start '${opts.command}' --name ${opts.name}`);
     } else {
       await ssh.exec(`pm2 restart ${opts.name} --update-env`, { silent: true });
     }
@@ -30,16 +27,15 @@ export class Pm2Manager implements ProcessManager {
 
   async restart(ssh: SSHClient, name: string, env?: Record<string, string>): Promise<void> {
     const envPrefix = env
-      ? Object.entries(env).map(([k, v]) => `${k}="${v}"`).join(' ') + ' '
+      ? `${Object.entries(env)
+          .map(([k, v]) => `${k}="${v}"`)
+          .join(' ')} `
       : '';
     await ssh.exec(`${envPrefix}pm2 restart ${name} --update-env`, { silent: true });
   }
 
   async status(ssh: SSHClient, name: string): Promise<ProcessStatus> {
-    const result = await ssh.execSilent(
-      `pm2 jlist 2>/dev/null || echo "[]"`,
-      { allowFail: true },
-    );
+    const result = await ssh.execSilent(`pm2 jlist 2>/dev/null || echo "[]"`, { allowFail: true });
 
     try {
       const processes = JSON.parse(result);
@@ -58,9 +54,7 @@ export class Pm2Manager implements ProcessManager {
         uptime: proc.pm2_env?.pm_uptime
           ? formatUptime(Date.now() - proc.pm2_env.pm_uptime)
           : undefined,
-        memory: proc.monit?.memory
-          ? `${Math.round(proc.monit.memory / 1024 / 1024)}MB`
-          : undefined,
+        memory: proc.monit?.memory ? `${Math.round(proc.monit.memory / 1024 / 1024)}MB` : undefined,
         cpu: proc.monit?.cpu !== undefined ? `${proc.monit.cpu}%` : undefined,
         restarts: proc.pm2_env?.restart_time,
         status: proc.pm2_env?.status ?? 'unknown',

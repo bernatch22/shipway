@@ -4,10 +4,14 @@ import { expandTilde } from '../utils/paths.js';
  * Standard SSH options for non-interactive deployments.
  */
 export const SSH_OPTIONS: readonly string[] = [
-  '-o', 'StrictHostKeyChecking=no',
-  '-o', 'UserKnownHostsFile=/dev/null',
-  '-o', 'LogLevel=ERROR',
-  '-o', 'ConnectTimeout=10',
+  '-o',
+  'StrictHostKeyChecking=no',
+  '-o',
+  'UserKnownHostsFile=/dev/null',
+  '-o',
+  'LogLevel=ERROR',
+  '-o',
+  'ConnectTimeout=10',
 ];
 
 /**

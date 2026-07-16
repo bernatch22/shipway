@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createRequire } from 'node:module';
 import { commands } from './commands/index.js';
 import type { CommandContext } from './commands/types.js';
 import { loadConfigFromDir } from './config/parser.js';
@@ -10,7 +11,6 @@ import { Logger } from './logging/logger.js';
 import type { OutputMode } from './logging/logger.js';
 import { SSHClient } from './ssh/client.js';
 import { parseArgv } from './utils/argv.js';
-import { createRequire } from 'node:module';
 
 // Read the version from package.json so `--version` never drifts from the published version
 // (it used to be a hardcoded constant that bumps forgot to update).

@@ -41,7 +41,8 @@ class EnvCommand implements Command {
 
     const serviceName = ctx.flags.service as string | undefined;
     if (serviceName && !ctx.config.services?.[serviceName]) {
-      const available = Object.keys(ctx.config.services ?? {}).join(', ') || '(no services defined)';
+      const available =
+        Object.keys(ctx.config.services ?? {}).join(', ') || '(no services defined)';
       ctx.logger.error(`Service "${serviceName}" not found. Available: ${available}`);
       return ExitCode.CONFIG;
     }
@@ -60,7 +61,9 @@ class EnvCommand implements Command {
     const action: Action = sub === 'pull' || sub === 'push' || sub === 'list' ? sub : 'diff';
     // For pull/push/diff the second positional is an optional local path.
     const localArg =
-      sub === 'pull' || sub === 'push' || sub === 'diff' || sub === 'list' ? ctx.args[1] : ctx.args[0];
+      sub === 'pull' || sub === 'push' || sub === 'diff' || sub === 'list'
+        ? ctx.args[1]
+        : ctx.args[0];
 
     const ssh = await ctx.createSSH();
     const resolver = new HostResolver();

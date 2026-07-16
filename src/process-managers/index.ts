@@ -1,7 +1,7 @@
-import type { ProcessManager } from './types.js';
+import { NoneManager } from './none.js';
 import { Pm2Manager } from './pm2.js';
 import { SystemdManager } from './systemd.js';
-import { NoneManager } from './none.js';
+import type { ProcessManager } from './types.js';
 
 export type { ProcessManager, StartOpts, LogsOpts, ProcessStatus } from './types.js';
 

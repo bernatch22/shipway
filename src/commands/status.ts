@@ -1,11 +1,11 @@
-import { HostResolver } from '../host/resolver.js';
-import { getProcessManager } from '../process-managers/index.js';
-import { checkHealth } from '../health/checker.js';
-import { ExitCode } from '../errors/index.js';
-import { bold, green, red, dim } from '../logging/colors.js';
 import type { NormalizedService } from '../config/types.js';
-import type { SSHClient } from '../ssh/client.js';
+import { ExitCode } from '../errors/index.js';
+import { checkHealth } from '../health/checker.js';
+import { HostResolver } from '../host/resolver.js';
+import { bold, dim, green, red } from '../logging/colors.js';
 import type { Logger } from '../logging/logger.js';
+import { getProcessManager } from '../process-managers/index.js';
+import type { SSHClient } from '../ssh/client.js';
 import type { Command, CommandContext } from './types.js';
 
 class StatusCommand implements Command {
@@ -31,7 +31,7 @@ class StatusCommand implements Command {
     // Multi-service
     if (ctx.config.services && Object.keys(ctx.config.services).length > 0) {
       const entries = serviceArg
-        ? [[serviceArg, ctx.config.services[serviceArg]]] as [string, NormalizedService][]
+        ? ([[serviceArg, ctx.config.services[serviceArg]]] as [string, NormalizedService][])
         : Object.entries(ctx.config.services);
 
       if (serviceArg && !ctx.config.services[serviceArg]) {

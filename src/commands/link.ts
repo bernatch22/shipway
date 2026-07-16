@@ -1,6 +1,6 @@
-import { FileProjectRepository } from '../registry/file-repository.js';
 import { findConfigFile, loadConfig } from '../config/parser.js';
 import { ExitCode } from '../errors/index.js';
+import { FileProjectRepository } from '../registry/file-repository.js';
 import type { Command, CommandContext } from './types.js';
 
 class LinkCommand implements Command {

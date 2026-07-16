@@ -1,9 +1,9 @@
-import { describe, it, expect } from 'vitest';
-import { parseArgv } from '../../../src/utils/argv.ts';
-import { expandTilde, getConfigDir } from '../../../src/utils/paths.ts';
+import { homedir } from 'node:os';
+import { describe, expect, it } from 'vitest';
 import { formatDuration } from '../../../src/logging/format.ts';
 import { Logger } from '../../../src/logging/logger.ts';
-import { homedir } from 'node:os';
+import { parseArgv } from '../../../src/utils/argv.ts';
+import { expandTilde, getConfigDir } from '../../../src/utils/paths.ts';
 
 describe('parseArgv', () => {
   it('should parse command and flags', () => {

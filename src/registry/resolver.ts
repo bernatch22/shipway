@@ -1,6 +1,6 @@
 import { findConfigFile, loadConfig } from '../config/parser.js';
-import { FileProjectRepository } from './file-repository.js';
 import type { NormalizedConfig } from '../config/types.js';
+import { FileProjectRepository } from './file-repository.js';
 
 /**
  * Resolve a project alias or CWD to its config.

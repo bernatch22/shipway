@@ -1,7 +1,7 @@
 import { checkHealth } from '../../health/checker.js';
 import { getProcessManager } from '../../process-managers/index.js';
-import type { DeployStep } from '../deploy-pipeline.js';
 import type { DeployContext } from '../deploy-context.js';
+import type { DeployStep } from '../deploy-pipeline.js';
 
 /**
  * Health check step — verify the service is responding correctly after deploy.
@@ -30,9 +30,7 @@ export class HealthCheckStep implements DeployStep {
         if (logs) logger.raw(`${logs}\n`);
       }
 
-      throw new Error(
-        `Health check failed: expected HTTP ${health.expect} from ${health.url}`,
-      );
+      throw new Error(`Health check failed: expected HTTP ${health.expect} from ${health.url}`);
     }
   }
 }

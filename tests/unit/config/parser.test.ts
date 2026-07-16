@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
 import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../../../src/config/parser.ts';
 
 const FIXTURES = resolve(import.meta.dirname, '../../fixtures/configs');
@@ -10,7 +10,9 @@ describe('Config Parser', () => {
       const config = await loadConfig(resolve(FIXTURES, 'deutschepolska.yml'));
 
       expect(config.name).toBe('deutschepolska');
-      expect(config.build).toBe('npm run build && cp server.mjs package.json package-lock.json dist/');
+      expect(config.build).toBe(
+        'npm run build && cp server.mjs package.json package-lock.json dist/',
+      );
       expect(config.postSync).toBe('cd /home/berna/deutschepolska && npm install --omit=dev');
       expect(config.start).toBe('node server.mjs');
     });
@@ -89,9 +91,9 @@ describe('Config Parser', () => {
 
   describe('validation errors', () => {
     it('should reject empty name', async () => {
-      await expect(
-        loadConfig(resolve(FIXTURES, 'invalid/empty-name.yml')),
-      ).rejects.toThrow(/Validation failed/);
+      await expect(loadConfig(resolve(FIXTURES, 'invalid/empty-name.yml'))).rejects.toThrow(
+        /Validation failed/,
+      );
     });
   });
 
@@ -124,9 +126,9 @@ describe('Config Parser', () => {
     });
 
     it('should throw for unknown environment', async () => {
-      await expect(
-        loadConfig(resolve(FIXTURES, 'with-envs.yml'), 'canary'),
-      ).rejects.toThrow(/Environment "canary" not found/);
+      await expect(loadConfig(resolve(FIXTURES, 'with-envs.yml'), 'canary')).rejects.toThrow(
+        /Environment "canary" not found/,
+      );
     });
 
     it('should load base config without --env', async () => {

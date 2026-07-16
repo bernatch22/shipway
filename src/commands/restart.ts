@@ -1,6 +1,6 @@
-import { getProcessManager } from '../process-managers/index.js';
-import { ExitCode } from '../errors/index.js';
 import type { NormalizedService } from '../config/types.js';
+import { ExitCode } from '../errors/index.js';
+import { getProcessManager } from '../process-managers/index.js';
 import type { Command, CommandContext } from './types.js';
 
 class RestartCommand implements Command {
