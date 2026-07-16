@@ -9,7 +9,6 @@ Shipway is a CLI for shipping Node.js, Python, and Ruby apps to a VPS without Do
 - **Safe by default** — shallow-path delete protection, multi-local guards, dry-run mode
 - **Environments** — staging and prod in the same config, switch with `--env`
 - **Registry** — `shipway link` once, then `shipway deploy myapp` from anywhere
-- **MCP server** — AI agents can inspect and manage production via the Model Context Protocol
 - **Zero cloud lock-in** — pure SSH, works with any VPS, any provider
 
 ---
@@ -641,7 +640,6 @@ shipway env push /tmp/app.env --yes --restart
 |---------|-------------|
 | `shipway migrate` | Convert `shipit.json` → `shipway.yml` |
 | `shipway doctor` | Check system dependencies (ssh, rsync, pm2) |
-| `shipway mcp` | Start MCP server for AI agent integration |
 | `shipway help` | Show full help |
 
 ### Global Flags
