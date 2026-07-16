@@ -35,7 +35,6 @@ examples/multi-service/data/
 
 # shipway state (generated)
 .shipway/
-.github/workflows/ci.yml
 
 # megabrain local index
 .megabrain/
