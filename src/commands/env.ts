@@ -9,6 +9,23 @@ import type { Command, CommandContext } from './types.js';
 
 type Action = 'pull' | 'push' | 'diff' | 'list';
 
+/** Whether a push may write, and if not, why not. */
+export type PushMode = 'write' | 'dry-run' | 'unconfirmed';
+
+/**
+ * `--dry-run` WINS over `--yes`, and that precedence is the whole point.
+ *
+ * `help` advertises `--dry-run, -n` under global Flags — "preview commands
+ * without executing" — but this command only ever gated on `--yes`, so
+ * `env push --dry-run --yes` OVERWROTE the production .env of somebody who
+ * asked for a preview. A flag a destructive command silently ignores is worse
+ * than one it rejects: the CLI promised the safe reading.
+ */
+export function pushMode(flags: Record<string, unknown>): PushMode {
+  if (flags['dry-run'] === true || flags.n === true) return 'dry-run';
+  return flags.yes === true ? 'write' : 'unconfirmed';
+}
+
 /**
  * `shipway env` — manage the remote `.env` without it being clobbered by deploys.
  *
@@ -26,12 +43,16 @@ type Action = 'pull' | 'push' | 'diff' | 'list';
  * Values are NEVER printed — diffs and `list` show key names only. Pull writes
  * 0600 and refuses to clobber an existing file without --force. Push backs up
  * the remote to `<path>.bak`, writes atomically, and can `--restart` after.
+ *
+ * Push is a preview until you pass `--yes`, and `--dry-run` OVERRIDES `--yes`
+ * (see `pushMode`) so the global flag `help` advertises means what it says on
+ * the one command here that can destroy remote state.
  */
 class EnvCommand implements Command {
   readonly name = 'env';
   readonly description = 'Pull/push/diff/list the remote .env file';
   readonly usage =
-    'shipway env [diff|pull|push|list] [path] [--service <name>] [--out <path>] [--yes] [--force] [--restart]';
+    'shipway env [diff|pull|push|list] [path] [--service <name>] [--out <path>] [--yes] [--dry-run] [--force] [--restart]';
 
   async execute(ctx: CommandContext): Promise<number> {
     if (!ctx.config) {
@@ -173,9 +194,12 @@ class EnvCommand implements Command {
       return ExitCode.OK;
     }
 
-    if (ctx.flags.yes !== true) {
+    const mode = pushMode(ctx.flags);
+    if (mode !== 'write') {
       ctx.logger.warn(
-        'Dry run. Re-run with --yes to write the remote .env (a .bak backup is kept).',
+        mode === 'dry-run'
+          ? 'Dry run (--dry-run) — nothing was written, even though --yes was passed.'
+          : 'Dry run. Re-run with --yes to write the remote .env (a .bak backup is kept).',
       );
       return ExitCode.OK;
     }
