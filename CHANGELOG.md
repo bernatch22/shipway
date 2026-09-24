@@ -3,6 +3,16 @@
 All notable changes to **shipway** are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow semver (pre-1.0, minor = features/notable docs).
 
+## [0.6.0] — 2026-07-24
+
+### Added
+- **`pm2 save` after every start/restart**, so a deploy survives a reboot. pm2 only resurrects
+  on boot from `~/.pm2/dump.pm2` (via the `pm2-<user>` systemd unit that `pm2 startup` installs),
+  and shipway never refreshed that dump — so a box rebooted into whatever snapshot happened to be
+  saved last, and any service added by a later deploy simply never came back. Best-effort
+  (`allowFail`), so a box without `pm2 startup` configured still deploys exactly as before.
+  Found on `pinecallgpu`, whose `dump.pm2` was 3 days stale and had no startup unit at all.
+
 ## [0.5.2] — 2026-07-10
 
 ### Fixed

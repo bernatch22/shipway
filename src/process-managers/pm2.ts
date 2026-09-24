@@ -19,6 +19,8 @@ export class Pm2Manager implements ProcessManager {
     } else {
       await ssh.exec(`pm2 restart ${opts.name} --update-env`, { silent: true });
     }
+
+    await this.save(ssh);
   }
 
   async stop(ssh: SSHClient, name: string): Promise<void> {
@@ -32,6 +34,19 @@ export class Pm2Manager implements ProcessManager {
           .join(' ')} `
       : '';
     await ssh.exec(`${envPrefix}pm2 restart ${name} --update-env`, { silent: true });
+    await this.save(ssh);
+  }
+
+  /**
+   * Freeze the current process list to `~/.pm2/dump.pm2`.
+   *
+   * pm2 only resurrects on boot from that dump (via the `pm2-<user>` systemd unit
+   * installed by `pm2 startup`). Without a save after each deploy the box reboots
+   * into a stale snapshot — a service added by a later deploy simply never comes
+   * back. Best-effort: a box without `pm2 startup` configured still deploys fine.
+   */
+  private async save(ssh: SSHClient): Promise<void> {
+    await ssh.exec('pm2 save', { silent: true, allowFail: true });
   }
 
   async status(ssh: SSHClient, name: string): Promise<ProcessStatus> {

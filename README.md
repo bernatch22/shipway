@@ -694,6 +694,20 @@ start: node server.js    # → pm2 start 'node server.js' --name my-app
 
 First deploy creates the pm2 process. Subsequent deploys restart it with `pm2 restart --update-env`.
 
+### Surviving a reboot
+
+Every start/restart is followed by `pm2 save`, which freezes the process list to `~/.pm2/dump.pm2`.
+That's the file pm2 resurrects from on boot — but only if the box has a startup unit installed. Run
+this **once per box**, or a reboot leaves everything down:
+
+```bash
+sudo env PATH=$PATH:$(dirname $(which node)) pm2 startup systemd -u $USER --hp $HOME
+pm2 save
+```
+
+Verify with `systemctl is-enabled pm2-$USER`. Without it, shipway still deploys fine — the `pm2 save`
+is best-effort and never fails a deploy.
+
 ---
 
 ## Safety Guards
