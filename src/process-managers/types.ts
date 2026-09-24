@@ -5,6 +5,8 @@ export interface StartOpts {
   command: string;
   cwd: string;
   env?: Record<string, string>;
+  /** Milliseconds between the stop signal and the kill, when the config names one. */
+  killTimeout?: number;
 }
 
 export interface LogsOpts {

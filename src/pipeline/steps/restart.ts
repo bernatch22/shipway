@@ -34,6 +34,7 @@ export class RestartStep implements DeployStep {
         name,
         command: restart.start,
         cwd,
+        ...(restart.killTimeout === undefined ? {} : { killTimeout: restart.killTimeout }),
       });
     } else {
       await pm.restart(ssh, name);

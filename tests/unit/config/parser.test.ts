@@ -165,4 +165,16 @@ describe('Config Parser', () => {
       expect(config.host).toBe('deploy@staging-host');
     });
   });
+
+  describe('restart.kill_timeout', () => {
+    it('carries the grace through normalization', async () => {
+      const config = await loadConfig(resolve(FIXTURES, 'kill-timeout.yml'));
+      expect(config.restart.killTimeout).toBe(45000);
+    });
+
+    it('leaves it unset when the config names none', async () => {
+      const config = await loadConfig(resolve(FIXTURES, 'deutschepolska.yml'));
+      expect(config.restart.killTimeout).toBeUndefined();
+    });
+  });
 });

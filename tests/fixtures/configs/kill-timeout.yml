@@ -1,0 +1,10 @@
+name: agent
+host: berna@203.0.113.7
+sync:
+  local: ./dist
+  remote: /home/berna/agent
+restart:
+  method: pm2
+  name: agent
+  start: pinecall start --prod
+  kill_timeout: 45000

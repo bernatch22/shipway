@@ -158,6 +158,7 @@ restart:                         # optional — explicit process manager config
   method: pm2                    # pm2 | systemd | none
   name: my-app                  # override pm2/systemd name
   start: node server.js         # start command
+  kill_timeout: 40000           # optional, pm2 — ms between the stop signal and the kill (pm2: 1600)
 
 port: 3000                       # optional — auto-generates health check
 
@@ -707,6 +708,24 @@ pm2 save
 
 Verify with `systemctl is-enabled pm2-$USER`. Without it, shipway still deploys fine — the `pm2 save`
 is best-effort and never fails a deploy.
+
+### Graceful stop: `kill_timeout`
+
+pm2 sends the stop signal and kills the process 1.6 s later. A process that drains on `SIGTERM` —
+finishes what it is doing, hands its work to the next one — needs longer:
+
+```yaml
+restart:
+  method: pm2
+  name: agent
+  start: pinecall start --prod
+  kill_timeout: 40000
+```
+
+`pm2 restart` cannot change a process's `kill_timeout`, only `pm2 start` can. So when the value in
+the config differs from the one pm2 holds (`pm2 jlist`), the deploy **recreates** the process —
+`pm2 delete` then `pm2 start --kill-timeout` — and that one stop still uses the old timeout. Every
+deploy after it restarts in place, with the new grace.
 
 ---
 

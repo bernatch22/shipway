@@ -41,6 +41,9 @@ export const RestartSchema = z.object({
   method: z.enum(['pm2', 'systemd', 'none']).default('pm2'),
   name: z.string().optional(),
   start: z.string().optional(),
+  // Milliseconds pm2 waits after the stop signal before it kills: the grace a process that drains
+  // on SIGTERM needs. pm2's own default is 1600.
+  kill_timeout: z.number().int().positive().optional(),
 });
 
 // ── Health check ──────────────────────────────────────────

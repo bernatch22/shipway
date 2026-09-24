@@ -13,14 +13,41 @@ export class Pm2Manager implements ProcessManager {
       allowFail: true,
     });
 
+    const wanted = opts.killTimeout;
     if (check.includes('NOTFOUND') || check.includes('[]')) {
       // First time — start with pm2
-      await ssh.exec(`cd ${opts.cwd} && pm2 start '${opts.command}' --name ${opts.name}`);
+      await ssh.exec(this.startLine(opts));
+    } else if (wanted !== undefined && (await this.killTimeoutOf(ssh, opts.name)) !== wanted) {
+      // `pm2 restart --kill-timeout` does not change a process's kill_timeout: only a start does. So
+      // a changed one recreates the process — and this one stop still uses the timeout it had.
+      await ssh.exec(`pm2 delete ${opts.name}`, { silent: true });
+      await ssh.exec(this.startLine(opts));
     } else {
       await ssh.exec(`pm2 restart ${opts.name} --update-env`, { silent: true });
     }
 
     await this.save(ssh);
+  }
+
+  private startLine(opts: StartOpts): string {
+    const grace = opts.killTimeout === undefined ? '' : ` --kill-timeout ${opts.killTimeout}`;
+    return `cd ${opts.cwd} && pm2 start '${opts.command}' --name ${opts.name}${grace}`;
+  }
+
+  /** The kill_timeout pm2 holds for this process, or undefined when none was ever set. */
+  private async killTimeoutOf(ssh: SSHClient, name: string): Promise<number | undefined> {
+    const listed = await ssh.execSilent(`pm2 jlist 2>/dev/null || echo "[]"`, { allowFail: true });
+    try {
+      const processes: unknown = JSON.parse(listed);
+      if (!Array.isArray(processes)) return undefined;
+      const proc = processes.find((p: Record<string, unknown>) => p.name === name) as
+        | { pm2_env?: { kill_timeout?: unknown } }
+        | undefined;
+      const held = proc?.pm2_env?.kill_timeout;
+      return typeof held === 'number' ? held : undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   async stop(ssh: SSHClient, name: string): Promise<void> {

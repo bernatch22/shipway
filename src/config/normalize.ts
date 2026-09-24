@@ -9,6 +9,7 @@ import type {
   NormalizedConfig,
   NormalizedEnvFile,
   NormalizedHealth,
+  NormalizedRestart,
   NormalizedService,
 } from './types.js';
 
@@ -162,13 +163,14 @@ function normalizeRestart(
   name: string,
   serviceName?: string,
   remoteDir?: string,
-): { method: 'pm2' | 'systemd' | 'none'; name?: string; start?: string; cwd?: string } {
+): NormalizedRestart {
   if (restart) {
     return {
       method: restart.method,
       name: restart.name ?? (serviceName ? `${name}-${serviceName}` : name),
       start: restart.start ?? start,
       cwd: remoteDir,
+      ...(restart.kill_timeout === undefined ? {} : { killTimeout: restart.kill_timeout }),
     };
   }
 

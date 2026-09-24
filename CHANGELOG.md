@@ -3,6 +3,14 @@
 All notable changes to **shipway** are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow semver (pre-1.0, minor = features/notable docs).
 
+## [0.6.1] — 2026-09-24
+
+### Added
+- **`restart.kill_timeout`** (pm2): the milliseconds between the stop signal and the kill. pm2's
+  1.6 s cut every process that drains on `SIGTERM` — a voice agent handing its live calls on,
+  first. `pm2 restart` cannot change a process's timeout, so a changed one recreates the process
+  (`pm2 delete` + `pm2 start --kill-timeout`); an unchanged one restarts in place as before.
+
 ## [0.6.0] — 2026-07-24
 
 ### Added

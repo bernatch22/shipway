@@ -68,6 +68,7 @@ export interface NormalizedRestart {
   name?: string;
   start?: string;
   cwd?: string;
+  killTimeout?: number;
 }
 
 export interface NormalizedService {
